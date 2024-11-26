@@ -378,6 +378,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 		}
 	case *types.Var:
 		// TODO: Are any enums var declarations? This is also codersdk.Me.
+		return nil // Maybe we should treat these like consts?
 	case *types.Const:
 		// Names are very likely enums
 		named, ok := obj.Type().(*types.Named)
