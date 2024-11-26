@@ -228,6 +228,12 @@ export function variableDeclaration(
   );
 }
 
+export function arrayLiteral(
+  elements: ts.Expression[]
+): ts.ArrayLiteralExpression {
+  return ts.factory.createArrayLiteralExpression(elements);
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -251,4 +257,5 @@ module.exports = {
   variableStatement: variableStatement,
   variableDeclaration: variableDeclaration,
   variableDeclarationList: variableDeclarationList,
+  arrayLiteral: arrayLiteral,
 };

@@ -49,9 +49,11 @@ func TestGeneration(t *testing.T) {
 			require.NoError(t, err, "to typescript")
 
 			// Export all top level types
-			ts.ForEach(config.ExportTypes())
-			// Make them read only
-			ts.ForEach(config.ReadOnly())
+			ts.ApplyMutations(
+				config.EnumLists,
+				config.ExportTypes,
+				config.ReadOnly,
+			)
 
 			output, err := ts.Serialize()
 			require.NoErrorf(t, err, "generate %q", dir)

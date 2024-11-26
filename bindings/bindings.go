@@ -89,6 +89,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		default:
 			return nil, xerrors.Errorf("unsupported literal type: %T", ety.Value)
 		}
+	case *ArrayLiteralType:
+		siObj, err = b.ArrayLiteral(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
 	}
@@ -472,6 +474,28 @@ func (b *Bindings) BooleanLiteral(value int) (*goja.Object, error) {
 	}
 
 	res, err := literalF(goja.Undefined(), b.vm.ToValue(value))
+	if err != nil {
+		return nil, xerrors.Errorf("call numericLiteral: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) ArrayLiteral(value *ArrayLiteralType) (*goja.Object, error) {
+	literalF, err := b.f("arrayLiteral")
+	if err != nil {
+		return nil, err
+	}
+
+	var elements []interface{}
+	for _, elem := range value.Elements {
+		v, err := b.ToTypescriptExpressionNode(elem)
+		if err != nil {
+			return nil, fmt.Errorf("array literal element: %w", err)
+		}
+		elements = append(elements, v)
+	}
+
+	res, err := literalF(goja.Undefined(), b.vm.NewArray(elements...))
 	if err != nil {
 		return nil, xerrors.Errorf("call numericLiteral: %w", err)
 	}

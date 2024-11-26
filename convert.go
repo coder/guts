@@ -191,7 +191,17 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 	return nil
 }
 
-func (ts *Typescript) SetNode(key string, node typescriptNode) error {
+func (ts *Typescript) SetNode(key string, node bindings.Node) error {
+	if _, ok := ts.typescriptNodes[key]; ok {
+		return fmt.Errorf("node %q already exists", key)
+	}
+	ts.typescriptNodes[key] = &typescriptNode{
+		Node: node,
+	}
+	return nil
+}
+
+func (ts *Typescript) setNode(key string, node typescriptNode) error {
 	if _, ok := ts.typescriptNodes[key]; ok {
 		return fmt.Errorf("node %q already exists", key)
 	}
@@ -199,7 +209,7 @@ func (ts *Typescript) SetNode(key string, node typescriptNode) error {
 	return nil
 }
 
-func (ts *Typescript) UpdateNode(key string, update func(n *typescriptNode)) {
+func (ts *Typescript) updateNode(key string, update func(n *typescriptNode)) {
 	v, ok := ts.typescriptNodes[key]
 	if !ok {
 		v = &typescriptNode{}
@@ -208,9 +218,9 @@ func (ts *Typescript) UpdateNode(key string, update func(n *typescriptNode)) {
 	update(v)
 }
 
-func (ts *Typescript) ApplyMutations(muts ...func(key string, node bindings.Node)) {
+func (ts *Typescript) ApplyMutations(muts ...func(typescript *Typescript)) {
 	for _, mut := range muts {
-		ts.ForEach(mut)
+		mut(ts)
 	}
 }
 
@@ -271,7 +281,7 @@ func (ts *Typescript) SerializeInOrder(sort func(nodes map[string]bindings.Node)
 		if err != nil {
 			return "", fmt.Errorf("serialize to typescript: %w", err)
 		}
-		str.WriteString(text + "\n" + "\n")
+		str.WriteString(text + "\n\n")
 	}
 	return str.String(), nil
 
@@ -302,7 +312,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 			if err != nil {
 				return xerrors.Errorf("generate %q: %w", objectName, err)
 			}
-			return ts.SetNode(objectName, typescriptNode{
+			return ts.setNode(objectName, typescriptNode{
 				Node: node,
 			})
 		case *types.Basic:
@@ -315,7 +325,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 
 			// If this has 'consts', then it is an enum. The enum code will
 			// patch this value to be more specific.
-			ts.UpdateNode(objectName, func(n *typescriptNode) {
+			ts.updateNode(objectName, func(n *typescriptNode) {
 				n.Node = &bindings.Alias{
 					Name:       bindings.Identifier(objectName),
 					Modifiers:  []bindings.Modifier{},
@@ -336,7 +346,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 				return xerrors.Errorf("(map) generate %q: %w", objectName, err)
 			}
 
-			return ts.SetNode(objectName, typescriptNode{
+			return ts.setNode(objectName, typescriptNode{
 				Node: &bindings.Alias{
 					Name:       bindings.Identifier(objectName),
 					Modifiers:  []bindings.Modifier{},
@@ -364,7 +374,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 				if err != nil {
 					return xerrors.Errorf("generate union %q: %w", objectName, err)
 				}
-				return ts.SetNode(objectName, typescriptNode{
+				return ts.setNode(objectName, typescriptNode{
 					Node: block,
 				})
 			}
@@ -390,7 +400,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 				if err != nil {
 					return xerrors.Errorf("basic const %q: %w", objectName, err)
 				}
-				return ts.SetNode(objectName, typescriptNode{
+				return ts.setNode(objectName, typescriptNode{
 					Node: cnst,
 				})
 			}
@@ -415,7 +425,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 		// This is a little hacky, but we need to add the enum to the Alias
 		// type. However, the order types are parsed is not guaranteed, so we
 		// add the enum to the Alias as a post-processing step.
-		ts.UpdateNode(enumObjName, func(n *typescriptNode) {
+		ts.updateNode(enumObjName, func(n *typescriptNode) {
 			n.AddEnum(constValue)
 		})
 		return nil

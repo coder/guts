@@ -3,8 +3,12 @@
 // From codersdk/enums.go
 export type EnumInt = 10 | 5;
 
+export const EnumInts: EnumInt[] = [10, 5];
+
 // From codersdk/enums.go
 export type EnumSliceType = EnumString[];
 
 // From codersdk/enums.go
 export type EnumString = "bar" | "baz" | "foo" | "qux";
+
+export const EnumStrings: EnumString[] = ["bar", "baz", "foo", "qux"];

@@ -78,6 +78,13 @@ func Array(node ExpressionType) *ArrayType {
 	}
 }
 
+type ArrayLiteralType struct {
+	Elements []ExpressionType
+	isTypescriptNode
+}
+
+func (*ArrayLiteralType) isExpressionType() {}
+
 type UnionType struct {
 	Types []ExpressionType
 

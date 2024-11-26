@@ -9,7 +9,7 @@ const (
 func (ts *Typescript) includeComparable() {
 	// The zzz just pushes it to the end of the sorting.
 	// Kinda strange, but it works.
-	_ = ts.SetNode(builtInComparable, typescriptNode{
+	_ = ts.setNode(builtInComparable, typescriptNode{
 		Node: &bindings.Alias{
 			Name:      builtInComparable,
 			Modifiers: []bindings.Modifier{},
