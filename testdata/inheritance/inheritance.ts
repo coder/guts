@@ -5,10 +5,21 @@ export interface Bar {
     readonly BarField: number;
 }
 
+// From codersdk/inheritance.go
+export interface Buzz {
+    readonly bar: string;
+}
+
 export type Comparable = string | number | boolean;
 
 // From codersdk/inheritance.go
 export interface Foo extends Bar, GenBar<string> {
+}
+
+// From codersdk/inheritance.go
+export interface FooBuzz {
+    readonly foo: Buzz;
+    readonly bazz: string;
 }
 
 // From codersdk/inheritance.go

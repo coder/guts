@@ -551,8 +551,9 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 			panic("invalid struct tags on type " + obj.String())
 		}
 
-		if field.Embedded() {
+		if field.Embedded() && tag.Get("json") == "" {
 			// Heritage was done above
+			// TODO: should do it here
 			continue
 		}
 
