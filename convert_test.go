@@ -17,7 +17,6 @@ import (
 
 	"github.com/coder/gots"
 	"github.com/coder/gots/config"
-	"github.com/coder/gots/mutations"
 )
 
 // updateGoldenFiles is a flag that can be set to update golden files.

@@ -44,7 +44,6 @@ export type Single = string;
 
 // From codersdk/generics.go
 export interface Static {
-    // this is likely an enum in an external package "time.Duration"
     readonly static: Fields<string, number, number, string>;
 }
 

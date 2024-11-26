@@ -36,6 +36,7 @@ func StandardMappings() map[string]gots.TypeOverride {
 
 		"net/netip.Addr": OverrideLiteral(bindings.KeywordString),
 		"net/url.URL":    OverrideLiteral(bindings.KeywordString),
+		"regexp.Regexp":  OverrideLiteral(bindings.KeywordString),
 	}
 }
 
