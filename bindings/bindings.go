@@ -33,7 +33,7 @@ func (b *Bindings) ToTypescriptNode(ety any) (*goja.Object, error) {
 		// Defer to the ExpressionType implementation
 		siObj, err = b.ToTypescriptExpressionNode(node)
 	default:
-		return nil, fmt.Errorf("unsupported node type: %T", node)
+		return nil, fmt.Errorf("unsupported node type for typescript serialization: %T", node)
 	}
 
 	return siObj, err
@@ -44,11 +44,11 @@ func (b *Bindings) ToTypescriptDeclarationNode(ety DeclarationType) (*goja.Objec
 	var err error
 
 	switch ety := ety.(type) {
-	case Interface:
+	case *Interface:
 		siObj, err = b.Interface(ety)
-	case Alias:
+	case *Alias:
 		siObj, err = b.Alias(ety)
-	case VariableStatement:
+	case *VariableStatement:
 		siObj, err = b.VariableStatement(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for declaration type: %T", ety)
@@ -62,21 +62,23 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 	var err error
 
 	switch ety := ety.(type) {
-	case LiteralKeyword:
+	case *LiteralKeyword:
 		siObj, err = b.LiteralKeyword(ety)
-	case ReferenceType:
+	case LiteralKeyword:
+		siObj, err = b.LiteralKeyword(&ety)
+	case *ReferenceType:
 		siObj, err = b.Reference(ety)
-	case ArrayType:
+	case *ArrayType:
 		siObj, err = b.Array(ety.Node)
-	case UnionType:
+	case *UnionType:
 		siObj, err = b.Union(ety)
-	case Null:
+	case *Null:
 		siObj, err = b.Null()
-	case VariableDeclarationList:
+	case *VariableDeclarationList:
 		siObj, err = b.VariableDeclarationList(ety)
-	case VariableDeclaration:
+	case *VariableDeclaration:
 		siObj, err = b.VariableDeclaration(ety)
-	case LiteralType:
+	case *LiteralType:
 		switch v := ety.Value.(type) {
 		case string:
 			siObj, err = b.StringLiteral(v)
@@ -110,7 +112,7 @@ func (b *Bindings) Identifier(name string) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) Reference(ref ReferenceType) (*goja.Object, error) {
+func (b *Bindings) Reference(ref *ReferenceType) (*goja.Object, error) {
 	modifier, err := b.f("reference")
 	if err != nil {
 		return nil, err
@@ -136,7 +138,7 @@ func (b *Bindings) Reference(ref ReferenceType) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) PropertySignature(sig PropertySignature) (*goja.Object, error) {
+func (b *Bindings) PropertySignature(sig *PropertySignature) (*goja.Object, error) {
 	propertySignature, err := b.f("propertySignature")
 	if err != nil {
 		return nil, err
@@ -160,7 +162,7 @@ func (b *Bindings) PropertySignature(sig PropertySignature) (*goja.Object, error
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) LiteralKeyword(word LiteralKeyword) (*goja.Object, error) {
+func (b *Bindings) LiteralKeyword(word *LiteralKeyword) (*goja.Object, error) {
 	literalKeyword, err := b.f("literalKeyword")
 	if err != nil {
 		return nil, err
@@ -173,7 +175,7 @@ func (b *Bindings) LiteralKeyword(word LiteralKeyword) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) Interface(ti Interface) (*goja.Object, error) {
+func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 	interfaceDecl, err := b.f("interfaceDecl")
 	if err != nil {
 		return nil, err
@@ -240,7 +242,7 @@ func (b *Bindings) Interface(ti Interface) (*goja.Object, error) {
 	return obj, nil
 }
 
-func (b *Bindings) HeritageClause(clause HeritageClause) (*goja.Object, error) {
+func (b *Bindings) HeritageClause(clause *HeritageClause) (*goja.Object, error) {
 	clauseF, err := b.f("heritageClause")
 	if err != nil {
 		return nil, err
@@ -297,7 +299,7 @@ func (b *Bindings) Array(arrType ExpressionType) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) Alias(alias Alias) (*goja.Object, error) {
+func (b *Bindings) Alias(alias *Alias) (*goja.Object, error) {
 	aliasFunc, err := b.f("aliasDecl")
 	if err != nil {
 		return nil, err
@@ -335,7 +337,7 @@ func (b *Bindings) Alias(alias Alias) (*goja.Object, error) {
 	return obj, nil
 }
 
-func (b *Bindings) TypeParameter(ty TypeParameter) (*goja.Object, error) {
+func (b *Bindings) TypeParameter(ty *TypeParameter) (*goja.Object, error) {
 	typeParamF, err := b.f("typeParameterDeclaration")
 	if err != nil {
 		return nil, err
@@ -370,7 +372,7 @@ func (b *Bindings) TypeParameter(ty TypeParameter) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) Union(ty UnionType) (*goja.Object, error) {
+func (b *Bindings) Union(ty *UnionType) (*goja.Object, error) {
 	unionF, err := b.f("unionType")
 	if err != nil {
 		return nil, err
@@ -478,7 +480,7 @@ func (b *Bindings) BooleanLiteral(value int) (*goja.Object, error) {
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) VariableStatement(stmt VariableStatement) (*goja.Object, error) {
+func (b *Bindings) VariableStatement(stmt *VariableStatement) (*goja.Object, error) {
 	aliasFunc, err := b.f("variableStatement")
 	if err != nil {
 		return nil, err
@@ -505,7 +507,7 @@ func (b *Bindings) VariableStatement(stmt VariableStatement) (*goja.Object, erro
 	return obj, nil
 }
 
-func (b *Bindings) VariableDeclarationList(list VariableDeclarationList) (*goja.Object, error) {
+func (b *Bindings) VariableDeclarationList(list *VariableDeclarationList) (*goja.Object, error) {
 	aliasFunc, err := b.f("variableDeclarationList")
 	if err != nil {
 		return nil, err
@@ -532,7 +534,7 @@ func (b *Bindings) VariableDeclarationList(list VariableDeclarationList) (*goja.
 	return res.ToObject(b.vm), nil
 }
 
-func (b *Bindings) VariableDeclaration(decl VariableDeclaration) (*goja.Object, error) {
+func (b *Bindings) VariableDeclaration(decl *VariableDeclaration) (*goja.Object, error) {
 	aliasFunc, err := b.f("variableDeclaration")
 	if err != nil {
 		return nil, err

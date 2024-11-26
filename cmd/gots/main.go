@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coder/gots/bindings"
 	"github.com/coder/gots/convert"
 )
 
@@ -34,12 +33,7 @@ func main() {
 		panic(err)
 	}
 
-	vm, err := bindings.New()
-	if err != nil {
-		panic(err)
-	}
-
-	output, err := ts.Serialize(vm)
+	output, err := ts.Serialize()
 	if err != nil {
 		panic(err)
 	}

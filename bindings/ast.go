@@ -24,8 +24,8 @@ type HeritageClause struct {
 	Args  []ExpressionType
 }
 
-func HeritageClauseExtends(args ...ExpressionType) HeritageClause {
-	return HeritageClause{
+func HeritageClauseExtends(args ...ExpressionType) *HeritageClause {
+	return &HeritageClause{
 		Token: HeritageTypeExtends,
 		Args:  args,
 	}

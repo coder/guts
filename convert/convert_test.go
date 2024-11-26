@@ -15,7 +15,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/coder/gots/bindings"
 	"github.com/coder/gots/convert"
 )
 
@@ -43,13 +42,10 @@ func TestGeneration(t *testing.T) {
 			err = gen.Include("./"+dir, true)
 			require.NoError(t, err, "include %q", dir)
 
-			vm, err := bindings.New()
-			require.NoError(t, err, "new bindings")
-
 			ts, err := gen.ToTypescript()
 			require.NoError(t, err, "to typescript")
 
-			output, err := ts.Serialize(vm)
+			output, err := ts.Serialize()
 			require.NoErrorf(t, err, "generate %q", dir)
 
 			golden := filepath.Join(dir, f.Name()+".ts")

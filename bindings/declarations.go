@@ -14,13 +14,13 @@ type DeclarationType interface {
 type Interface struct {
 	Name       Identifier
 	Modifiers  []Modifier
-	Fields     []PropertySignature
-	Parameters []TypeParameter
-	Heritage   []HeritageClause
+	Fields     []*PropertySignature
+	Parameters []*TypeParameter
+	Heritage   []*HeritageClause
 	Source
 }
 
-func (Interface) isDeclarationType() {}
+func (*Interface) isDeclarationType() {}
 
 type PropertySignature struct {
 	// Name is the field name
@@ -36,11 +36,11 @@ type Alias struct {
 	Name       Identifier
 	Modifiers  []Modifier
 	Type       ExpressionType
-	Parameters []TypeParameter
+	Parameters []*TypeParameter
 	Source
 }
 
-func (Alias) isDeclarationType() {}
+func (*Alias) isDeclarationType() {}
 
 // TypeParameter are generics in Go
 // Foo[T comparable] ->
@@ -58,9 +58,9 @@ type TypeParameter struct {
 }
 
 // Simplify removes duplicate type parameters
-func Simplify(p []TypeParameter) ([]TypeParameter, error) {
-	params := make([]TypeParameter, 0, len(p))
-	exists := make(map[string]TypeParameter)
+func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
+	params := make([]*TypeParameter, 0, len(p))
+	exists := make(map[string]*TypeParameter)
 	for _, tp := range p {
 		if found, ok := exists[tp.Name]; ok {
 			// Compare types, make sure they are the same
@@ -78,8 +78,8 @@ func Simplify(p []TypeParameter) ([]TypeParameter, error) {
 
 type VariableStatement struct {
 	Modifiers    []Modifier
-	Declarations VariableDeclarationList
+	Declarations *VariableDeclarationList
 	Source
 }
 
-func (VariableStatement) isDeclarationType() {}
+func (*VariableStatement) isDeclarationType() {}

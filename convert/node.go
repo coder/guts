@@ -9,23 +9,27 @@ import (
 // TypescriptNode is any type that can be serialized into typescript
 type TypescriptNode struct {
 	Node any
-	// Mutations is a list of functions that need to be applied to the node before
-	// it can be serialized to typescript.
+	// mutations is a list of functions that need to be applied to the node before
+	// it can be serialized to typescript. It exists for ensuring consistent ordering
+	// of execution, regardless of the parsing order.
 	// These mutations can be anything.
-	Mutations []func(v any) (any, error)
+	mutations []func(v any) (any, error)
+}
+
+func (t TypescriptNode) applyMutations() (TypescriptNode, error) {
+	for _, m := range t.mutations {
+		var err error
+		t.Node, err = m(t.Node)
+		if err != nil {
+			return t, fmt.Errorf("apply mutation: %w", err)
+		}
+	}
+	t.mutations = nil
+	return t, nil
 }
 
 func (t TypescriptNode) Typescript(vm *bindings.Bindings) (string, error) {
-	node := t.Node
-	var err error
-	for i, mut := range t.Mutations {
-		node, err = mut(node)
-		if err != nil {
-			return "", fmt.Errorf("mutation %d: %w", i, err)
-		}
-	}
-
-	obj, err := vm.ToTypescriptNode(node)
+	obj, err := vm.ToTypescriptNode(t.Node)
 	if err != nil {
 		return "", fmt.Errorf("convert node: %w", err)
 	}
@@ -37,14 +41,14 @@ func (t TypescriptNode) Typescript(vm *bindings.Bindings) (string, error) {
 	return typescript, nil
 }
 
-func (t TypescriptNode) AddEnum(enum bindings.ExpressionType) TypescriptNode {
-	t.Mutations = append(t.Mutations, func(v any) (any, error) {
-		alias, ok := v.(bindings.Alias)
+func (t *TypescriptNode) AddEnum(enum bindings.ExpressionType) {
+	t.mutations = append(t.mutations, func(v any) (any, error) {
+		alias, ok := v.(*bindings.Alias)
 		if !ok {
 			return nil, fmt.Errorf("expected alias type, got %T", t.Node)
 		}
 
-		union, ok := alias.Type.(bindings.UnionType)
+		union, ok := alias.Type.(*bindings.UnionType)
 		if !ok {
 			// Make it a union, this removes the original type.
 			union = bindings.Union()
@@ -55,5 +59,4 @@ func (t TypescriptNode) AddEnum(enum bindings.ExpressionType) TypescriptNode {
 		alias.Type = union
 		return alias, nil
 	})
-	return t
 }

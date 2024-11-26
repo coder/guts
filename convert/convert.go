@@ -79,7 +79,7 @@ func (p *GoParser) IncludeCustom(mappings map[string]string) error {
 			p.customMappings[k] = bindings.KeywordUnknown
 		default:
 			// TODO: Verify these at all?
-			p.customMappings[k] = bindings.ReferenceType{
+			p.customMappings[k] = &bindings.ReferenceType{
 				Name: v,
 			}
 		}
@@ -116,24 +116,37 @@ func (p *GoParser) Include(directory string, generate bool) error {
 // ToTypescript translates the Go types into the intermediate typescript AST
 func (p *GoParser) ToTypescript() (*Typescript, error) {
 	typescript := &Typescript{
-		typescriptNodes: make(map[string]TypescriptNode),
+		typescriptNodes: make(map[string]*TypescriptNode),
 		parsed:          p,
 	}
 
+	// Parse all go types to the typescript AST
 	err := typescript.parseGolangIdentifiers()
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply any post-processing mutations to the nodes.
+	for key, node := range typescript.typescriptNodes {
+		newNode, err := node.applyMutations()
+		if err != nil {
+			return nil, fmt.Errorf("node %q: %w", key, err)
+		}
+		typescript.typescriptNodes[key] = &newNode
 	}
 
 	return typescript, nil
 }
 
 type Typescript struct {
-	// TypescriptNodes is a map of typescript nodes that are generated from the
+	// typescriptNodes is a map of typescript nodes that are generated from the
 	// parsed go code. All names should be unique. If non-unique names exist, that
 	// means packages contain the same named types.
-	typescriptNodes map[string]TypescriptNode
+	typescriptNodes map[string]*TypescriptNode
 	parsed          *GoParser
+	// Do not allow calling serialize more than once.
+	// The call affects the state.
+	serialized bool
 }
 
 func (ts *Typescript) parseGolangIdentifiers() error {
@@ -182,19 +195,38 @@ func (ts *Typescript) SetNode(key string, node TypescriptNode) error {
 	if _, ok := ts.typescriptNodes[key]; ok {
 		return fmt.Errorf("node %q already exists", key)
 	}
-	ts.typescriptNodes[key] = node
+	ts.typescriptNodes[key] = &node
 	return nil
 }
 
-func (ts *Typescript) UpdateNode(key string, update func(n TypescriptNode) TypescriptNode) {
+func (ts *Typescript) UpdateNode(key string, update func(n *TypescriptNode)) {
 	v, ok := ts.typescriptNodes[key]
 	if !ok {
-		ts.typescriptNodes[key] = TypescriptNode{}
+		v = &TypescriptNode{}
+		ts.typescriptNodes[key] = v
 	}
-	ts.typescriptNodes[key] = update(v)
+	update(v)
 }
 
-func (ts *Typescript) Serialize(vm *bindings.Bindings) (string, error) {
+// ForEach iterates through all the nodes in the typescript AST.
+func (ts *Typescript) ForEach(node func(key string, node *TypescriptNode)) {
+	for k, v := range ts.typescriptNodes {
+		node(k, v)
+	}
+}
+
+func (ts *Typescript) Serialize() (string, error) {
+	if ts.serialized {
+		return "", fmt.Errorf("already serialized, create a new TS object to serialize again")
+	}
+	// Even if it fails, do not allow calling this function again.
+	ts.serialized = true
+
+	vm, err := bindings.New()
+	if err != nil {
+		return "", fmt.Errorf("failed to create typescript bindings: %w", err)
+	}
+
 	nodeList := make([]string, 0, len(ts.typescriptNodes))
 	for k := range ts.typescriptNodes {
 		nodeList = append(nodeList, k)
@@ -260,15 +292,14 @@ func (ts *Typescript) parse(obj types.Object) error {
 
 			// If this has 'consts', then it is an enum. The enum code will
 			// patch this value to be more specific.
-			ts.UpdateNode(objectName, func(n TypescriptNode) TypescriptNode {
-				n.Node = bindings.Alias{
+			ts.UpdateNode(objectName, func(n *TypescriptNode) {
+				n.Node = &bindings.Alias{
 					Name:       bindings.Identifier(objectName),
 					Modifiers:  []bindings.Modifier{},
 					Type:       rhs.Value,
 					Parameters: rhs.TypeParameters,
 					Source:     ts.location(obj),
 				}
-				return n
 			})
 			return nil
 		case *types.Map, *types.Array, *types.Slice:
@@ -283,7 +314,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 			}
 
 			return ts.SetNode(objectName, TypescriptNode{
-				Node: bindings.Alias{
+				Node: &bindings.Alias{
 					Name:       bindings.Identifier(objectName),
 					Modifiers:  []bindings.Modifier{},
 					Type:       ty.Value,
@@ -360,8 +391,8 @@ func (ts *Typescript) parse(obj types.Object) error {
 		// This is a little hacky, but we need to add the enum to the Alias
 		// type. However, the order types are parsed is not guaranteed, so we
 		// add the enum to the Alias as a post-processing step.
-		ts.UpdateNode(enumObjName, func(n TypescriptNode) TypescriptNode {
-			return n.AddEnum(constValue)
+		ts.UpdateNode(enumObjName, func(n *TypescriptNode) {
+			n.AddEnum(constValue)
 		})
 		return nil
 	case *types.Func:
@@ -374,16 +405,16 @@ func (ts *Typescript) parse(obj types.Object) error {
 	return xerrors.Errorf("should never hit this")
 }
 
-func (ts *Typescript) constantDeclaration(obj *types.Const) (bindings.VariableStatement, error) {
+func (ts *Typescript) constantDeclaration(obj *types.Const) (*bindings.VariableStatement, error) {
 	val, err := ts.constantValue(obj)
 	if err != nil {
-		return bindings.VariableStatement{}, err
+		return &bindings.VariableStatement{}, err
 	}
 
-	return bindings.VariableStatement{
+	return &bindings.VariableStatement{
 		Modifiers: []bindings.Modifier{},
-		Declarations: bindings.VariableDeclarationList{
-			Declarations: []bindings.VariableDeclaration{
+		Declarations: &bindings.VariableDeclarationList{
+			Declarations: []*bindings.VariableDeclaration{
 				{
 					Name:            obj.Name(),
 					ExclamationMark: false,
@@ -396,7 +427,7 @@ func (ts *Typescript) constantDeclaration(obj *types.Const) (bindings.VariableSt
 	}, nil
 }
 
-func (ts *Typescript) constantValue(obj *types.Const) (bindings.LiteralType, error) {
+func (ts *Typescript) constantValue(obj *types.Const) (*bindings.LiteralType, error) {
 	var constValue bindings.LiteralType
 	switch obj.Val().Kind() {
 	case constant.String:
@@ -409,20 +440,20 @@ func (ts *Typescript) constantValue(obj *types.Const) (bindings.LiteralType, err
 	case constant.Bool:
 		constValue.Value = constant.BoolVal(obj.Val())
 	default:
-		return bindings.LiteralType{}, xerrors.Errorf("const %q is not a supported basic type, enums only support basic", obj.Name())
+		return &bindings.LiteralType{}, xerrors.Errorf("const %q is not a supported basic type, enums only support basic", obj.Name())
 	}
-	return constValue, nil
+	return &constValue, nil
 }
 
 // buildStruct just prints the typescript def for a type.
 // Generic type parameters are inferred from the type and inferred.
-func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (bindings.Interface, error) {
-	tsi := bindings.Interface{
+func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings.Interface, error) {
+	tsi := &bindings.Interface{
 		Name:       bindings.Identifier(obj.Name()),
 		Modifiers:  []bindings.Modifier{},
-		Fields:     []bindings.PropertySignature{},
-		Parameters: []bindings.TypeParameter{},  // Generics
-		Heritage:   []bindings.HeritageClause{}, // Extends
+		Fields:     []*bindings.PropertySignature{},
+		Parameters: []*bindings.TypeParameter{},  // Generics
+		Heritage:   []*bindings.HeritageClause{}, // Extends
 		Source:     ts.location(obj),
 	}
 
@@ -497,7 +528,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (bindings.
 		}
 
 		// Create a new field in the intermediate typescript representation.
-		tsField := bindings.PropertySignature{
+		tsField := &bindings.PropertySignature{
 			Name:          field.Name(),
 			Modifiers:     []bindings.Modifier{},
 			QuestionToken: false,
@@ -551,7 +582,7 @@ type ParsedType struct {
 	// Value is the typescript type of the passed in go type.
 	Value bindings.ExpressionType
 	// TypeParameters are any generic types that are used in the Value.
-	TypeParameters []bindings.TypeParameter
+	TypeParameters []*bindings.TypeParameter
 	// RaisedComments exists to add comments to the first parent that is willing
 	// to accept them. It is for formatting purposes.
 	RaisedComments []string
@@ -733,7 +764,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		}
 
 		// Golang pointers can json marshal to 'null' if they are nil
-		resp.Value = bindings.Union(resp.Value, bindings.Null{})
+		resp.Value = bindings.Union(resp.Value, &bindings.Null{})
 		return resp, nil
 	case *types.Interface:
 		// only handle the empty interface (interface{}) for now
@@ -801,7 +832,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 
 		return ParsedType{
 			Value: bindings.Reference(name),
-			TypeParameters: []bindings.TypeParameter{
+			TypeParameters: []*bindings.TypeParameter{
 				{
 					Name:      name,
 					Modifiers: []bindings.Modifier{},
@@ -823,8 +854,8 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 }
 
 // buildStruct just prints the typescript def for a type.
-func (ts *Typescript) buildUnion(obj types.Object, st *types.Union) (bindings.Alias, error) {
-	alias := bindings.Alias{
+func (ts *Typescript) buildUnion(obj types.Object, st *types.Union) (*bindings.Alias, error) {
+	alias := &bindings.Alias{
 		Name:       bindings.Identifier(obj.Name()),
 		Modifiers:  []bindings.Modifier{},
 		Type:       nil,
@@ -849,13 +880,13 @@ func (ts *Typescript) buildUnion(obj types.Object, st *types.Union) (bindings.Al
 }
 
 // typeParametersParameters extracts the generic parameters from a named type.
-func (ts *Typescript) typeParametersParameters(obj interface{ TypeParams() *types.TypeParamList }) ([]bindings.TypeParameter, error) {
+func (ts *Typescript) typeParametersParameters(obj interface{ TypeParams() *types.TypeParamList }) ([]*bindings.TypeParameter, error) {
 	args := obj.TypeParams()
 	if args == nil || args.Len() == 0 {
-		return []bindings.TypeParameter{}, nil
+		return []*bindings.TypeParameter{}, nil
 	}
 
-	params := make([]bindings.TypeParameter, 0, args.Len())
+	params := make([]*bindings.TypeParameter, 0, args.Len())
 	for i := 0; i < args.Len(); i++ {
 		arg := args.At(i)
 		argType, err := ts.typescriptType(arg)
@@ -899,4 +930,8 @@ func (p *GoParser) lookupNamedReference(n *types.Named) (types.Object, bool) {
 		return nil, false
 	}
 	return obj, true
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

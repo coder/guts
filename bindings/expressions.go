@@ -9,6 +9,7 @@ type ExpressionType interface {
 
 type LiteralKeyword string
 
+// TODO: Should this be a pointer?
 func (LiteralKeyword) isExpressionType() {}
 
 const (
@@ -43,7 +44,7 @@ type LiteralType struct {
 	Value any // should be some constant value
 }
 
-func (LiteralType) isExpressionType() {}
+func (*LiteralType) isExpressionType() {}
 
 // ReferenceType can be used to reference another type by name
 type ReferenceType struct {
@@ -52,51 +53,51 @@ type ReferenceType struct {
 	Arguments []ExpressionType `json:"arguments"`
 }
 
-func (ReferenceType) isExpressionType() {}
+func (*ReferenceType) isExpressionType() {}
 
-func Reference(name string, args ...ExpressionType) ReferenceType {
-	return ReferenceType{Name: name, Arguments: args}
+func Reference(name string, args ...ExpressionType) *ReferenceType {
+	return &ReferenceType{Name: name, Arguments: args}
 }
 
 type ArrayType struct {
 	Node ExpressionType
 }
 
-func Array(node ExpressionType) ArrayType {
-	return ArrayType{
+func Array(node ExpressionType) *ArrayType {
+	return &ArrayType{
 		Node: node,
 	}
 }
 
-func (ArrayType) isExpressionType() {}
+func (*ArrayType) isExpressionType() {}
 
 type UnionType struct {
 	Types []ExpressionType
 }
 
-func Union(types ...ExpressionType) UnionType {
-	return UnionType{Types: types}
+func Union(types ...ExpressionType) *UnionType {
+	return &UnionType{Types: types}
 }
 
-func (UnionType) isExpressionType() {}
+func (*UnionType) isExpressionType() {}
 
 type Null struct{}
 
-func (Null) isExpressionType() {}
+func (*Null) isExpressionType() {}
 
 type ExpressionWithTypeArguments struct {
 	Expression ExpressionType
 	Arguments  []ExpressionType
 }
 
-func (ExpressionWithTypeArguments) isExpressionType() {}
+func (*ExpressionWithTypeArguments) isExpressionType() {}
 
 type VariableDeclarationList struct {
-	Declarations []VariableDeclaration
+	Declarations []*VariableDeclaration
 	Flags        NodeFlags
 }
 
-func (VariableDeclarationList) isExpressionType() {}
+func (*VariableDeclarationList) isExpressionType() {}
 
 type VariableDeclaration struct {
 	Name            string
@@ -105,4 +106,8 @@ type VariableDeclaration struct {
 	Initializer     ExpressionType
 }
 
-func (VariableDeclaration) isExpressionType() {}
+func (*VariableDeclaration) isExpressionType() {}
+
+func ptr[T any](v T) *T {
+	return &v
+}
