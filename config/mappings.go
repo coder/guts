@@ -20,7 +20,8 @@ func OverrideNullable(t gots.TypeOverride) gots.TypeOverride {
 // StandardMappings is a list of standard mappings for Go types to Typescript types.
 func StandardMappings() map[string]gots.TypeOverride {
 	return map[string]gots.TypeOverride{
-		"time.Time": OverrideLiteral(bindings.KeywordString),
+		"time.Time":     OverrideLiteral(bindings.KeywordString),
+		"time.Duration": OverrideLiteral(bindings.KeywordNumber),
 
 		"database/sql.NullTime":    OverrideNullable(OverrideLiteral(bindings.KeywordString)),
 		"database/sql.NullString":  OverrideNullable(OverrideLiteral(bindings.KeywordString)),
@@ -32,6 +33,9 @@ func StandardMappings() map[string]gots.TypeOverride {
 
 		"github.com/google/uuid.UUID":     OverrideLiteral(bindings.KeywordString),
 		"github.com/google/uuid.NullUUID": OverrideNullable(OverrideLiteral(bindings.KeywordString)),
+
+		"net/netip.Addr": OverrideLiteral(bindings.KeywordString),
+		"net/url.URL":    OverrideLiteral(bindings.KeywordString),
 	}
 }
 
