@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/coder/gots"
+	"github.com/coder/gots/config"
 )
 
 func main() {
@@ -21,17 +22,18 @@ func main() {
 		}
 	}
 
-	err = gen.IncludeCustom(map[string]string{
-		"github.com/google/uuid.UUID": "string",
-	})
-	if err != nil {
-		panic(err)
-	}
+	gen.IncludeCustomDeclaration(config.StandardMappings())
 
 	ts, err := gen.ToTypescript()
 	if err != nil {
 		panic(err)
 	}
+
+	ts.ApplyMutations(
+		config.EnumLists,
+		config.ExportTypes,
+		config.ReadOnly,
+	)
 
 	output, err := ts.Serialize()
 	if err != nil {

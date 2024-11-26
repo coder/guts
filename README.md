@@ -36,3 +36,20 @@ These types are placed into a simple AST that directly maps to the typescript AS
 
 Using [goja](https://github.com/dop251/goja), these types are then converted to typescript using the typescript compiler API. 
 
+
+# Generator Opinions
+
+The generator aims to do the bare minimum type conversion. An example of a common opinion, is to create enum lists.
+
+```typescript
+export type Enum = "bar" | "baz" | "foo" | "qux" // <-- Golang type
+export const Enums: Enum[] = ["bar", "baz", "foo", "qux"] // <-- Helpful additional generated type
+```
+
+These kinds of opinions can be added with:
+```golang
+ts.ApplyMutations(
+	config.EnumLists,
+)
+output, _ := ts.Serialize()
+```
