@@ -235,7 +235,8 @@ func (ts *Typescript) parse(obj types.Object) error {
 		case *types.Alias:
 			rhs = typedObj.Rhs().Underlying()
 		default:
-			return fmt.Errorf("not supported top level type %T for %q", obj.Type(), objectName)
+			// Fall the type through... this should be ok
+			rhs = typedObj
 		}
 
 		switch underNamed := rhs.(type) {
@@ -460,7 +461,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (bindings.
 		case *types.Alias:
 			typeParamed = typedObj
 		default:
-			return tsi, xerrors.Errorf("not supported top level type %T for %q", obj.Type(), obj.Name())
+			return tsi, xerrors.Errorf("not supported type %T for %q to parse type parameters", obj.Type(), obj.Name())
 		}
 
 		// This code is usually redundant, as we infer generics from the

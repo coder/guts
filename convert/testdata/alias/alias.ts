@@ -7,4 +7,7 @@ type Alias = string;
 type AliasString = string;
 
 // From alias/alias.go
+type AliasStringSlice = string[];
+
+// From alias/alias.go
 type Foo = string;
