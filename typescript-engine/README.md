@@ -1,15 +1,5 @@
-# 🚀 Welcome to your new awesome project!
-
-This project has been created using **webpack-cli**, you can now run
+# To recompile the javascript bindings
 
 ```
-npm run build
+pnpm run build
 ```
-
-or
-
-```
-yarn build
-```
-
-to bundle your application
