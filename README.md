@@ -53,3 +53,7 @@ ts.ApplyMutations(
 )
 output, _ := ts.Serialize()
 ```
+
+# Helpful notes
+
+An incredible website to visualize the AST of typescript: https://ts-ast-viewer.com/
