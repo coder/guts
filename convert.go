@@ -208,6 +208,12 @@ func (ts *Typescript) UpdateNode(key string, update func(n *typescriptNode)) {
 	update(v)
 }
 
+func (ts *Typescript) ApplyMutations(muts ...func(key string, node bindings.Node)) {
+	for _, mut := range muts {
+		ts.ForEach(mut)
+	}
+}
+
 // ForEach iterates through all the nodes in the typescript AST.
 func (ts *Typescript) ForEach(node func(key string, node bindings.Node)) {
 	for k, v := range ts.typescriptNodes {
@@ -768,7 +774,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			// reference with a comment.
 			return simpleParsedType(ptr(bindings.KeywordUnknown)).WithComments(
 				// '.Include(<pkg_path>, false)' to include this type
-				fmt.Sprintf("external type %q, to include this type the package must be explictly included in the parsing", n.String())), nil
+				fmt.Sprintf("external type %q, to include this type the package must be explicitly included in the parsing", n.String())), nil
 		}
 
 		// Defer to the underlying type.
