@@ -56,11 +56,10 @@ func NewGolangParser() (*GoParser, error) {
 }
 
 // IncludeCustomDeclaration is an advanced form of IncludeCustom.
-func (p *GoParser) IncludeCustomDeclaration(mappings map[string]bindings.ExpressionType) error {
+func (p *GoParser) IncludeCustomDeclaration(mappings map[string]bindings.ExpressionType) {
 	for k, v := range mappings {
 		p.customMappings[k] = v
 	}
-	return nil
 }
 
 // IncludeCustom only works for basic literal types and non-parameterized reference types.
