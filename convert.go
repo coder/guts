@@ -1,4 +1,4 @@
-package convert
+package gots
 
 import (
 	"context"
@@ -483,7 +483,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 	// Handle named embedded structs in the codersdk package via extension.
 	// This is inheritance.
 	// TODO: Maybe this could be done inline in the main for loop?
-	var extends []ParsedType
+	var extends []parsedType
 	for i := 0; i < st.NumFields(); i++ {
 		field := st.Field(i)
 		tag := reflect.StructTag(st.Tag(i))
@@ -601,7 +601,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 	return tsi, nil
 }
 
-type ParsedType struct {
+type parsedType struct {
 	// Value is the typescript type of the passed in go type.
 	Value bindings.ExpressionType
 	// TypeParameters are any generic types that are used in the Value.
@@ -611,37 +611,37 @@ type ParsedType struct {
 	RaisedComments []string
 }
 
-func SimpleParsedType(et bindings.ExpressionType) ParsedType {
-	return ParsedType{
+func simpleParsedType(et bindings.ExpressionType) parsedType {
+	return parsedType{
 		Value: et,
 	}
 }
 
-func (p ParsedType) WithComments(comments ...string) ParsedType {
+func (p parsedType) WithComments(comments ...string) parsedType {
 	p.RaisedComments = append(p.RaisedComments, comments...)
 	return p
 }
 
 // TODO: Return comments?
-func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
+func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 	switch ty := ty.(type) {
 	case *types.Basic:
 		bs := ty
 		// All basic literals (string, bool, int, etc).
 		switch {
 		case bs.Info()&types.IsNumeric > 0:
-			return SimpleParsedType(ptr(bindings.KeywordNumber)), nil
+			return simpleParsedType(ptr(bindings.KeywordNumber)), nil
 		case bs.Info()&types.IsBoolean > 0:
-			return SimpleParsedType(ptr(bindings.KeywordBoolean)), nil
+			return simpleParsedType(ptr(bindings.KeywordBoolean)), nil
 		case bs.Kind() == types.Byte:
 			// TODO: @emyrk What is a byte for typescript? A string? A uint8?
 			// TODO: Comment
 			//return bindings.PrependComment("This is a byte in golang", bindings.Literal(bindings.KeywordNumber)), nil
-			return SimpleParsedType(ptr(bindings.KeywordNumber)), nil
+			return simpleParsedType(ptr(bindings.KeywordNumber)), nil
 		case bs.Kind() == types.String, bs.Kind() == types.Rune:
-			return SimpleParsedType(ptr(bindings.KeywordString)), nil
+			return simpleParsedType(ptr(bindings.KeywordString)), nil
 		default:
-			return ParsedType{}, xerrors.Errorf("unsupported basic type %q", bs.String())
+			return parsedType{}, xerrors.Errorf("unsupported basic type %q", bs.String())
 		}
 	case *types.Struct:
 		// This handles anonymous structs. This should never happen really.
@@ -654,7 +654,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		//	  }
 		//  }
 		// TODO: Comment: indentedComment("Embedded anonymous struct, please fix by naming it"),
-		parsed := SimpleParsedType(ptr(bindings.KeywordUnknown))
+		parsed := simpleParsedType(ptr(bindings.KeywordUnknown))
 		parsed.RaisedComments = append(parsed.RaisedComments, "embedded anonymous struct, please fix by naming it")
 		return parsed, nil
 	case *types.Map:
@@ -664,18 +664,18 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		m := ty
 		keyType, err := ts.typescriptType(m.Key())
 		if err != nil {
-			return ParsedType{}, xerrors.Errorf("map key: %w", err)
+			return parsedType{}, xerrors.Errorf("map key: %w", err)
 		}
 		valueType, err := ts.typescriptType(m.Elem())
 		if err != nil {
-			return ParsedType{}, xerrors.Errorf("map key: %w", err)
+			return parsedType{}, xerrors.Errorf("map key: %w", err)
 		}
 
 		tp, err := bindings.Simplify(append(keyType.TypeParameters, valueType.TypeParameters...))
 		if err != nil {
-			return ParsedType{}, xerrors.Errorf("simplify generics in map: %w", err)
+			return parsedType{}, xerrors.Errorf("simplify generics in map: %w", err)
 		}
-		parsed := ParsedType{
+		parsed := parsedType{
 			Value:          bindings.Reference("Record", keyType.Value, valueType.Value),
 			TypeParameters: tp,
 			RaisedComments: append(keyType.RaisedComments, valueType.RaisedComments...),
@@ -694,19 +694,19 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		case arr.Elem().String() == "byte":
 			// All byte arrays are strings on the typescript.
 			// Is this ok?
-			return SimpleParsedType(bindings.Array(ptr(bindings.KeywordString))), nil
+			return simpleParsedType(bindings.Array(ptr(bindings.KeywordString))), nil
 		default:
 			// By default, just do an array of the underlying type.
 			underlying, err := ts.typescriptType(arr.Elem())
 			if err != nil {
-				return ParsedType{}, xerrors.Errorf("array: %w", err)
+				return parsedType{}, xerrors.Errorf("array: %w", err)
 			}
 			//genValue := ""
 			//
 			//if underlying.GenericValue != "" {
 			//	genValue = "Readonly<Array<" + underlying.GenericValue + ">>"
 			//}
-			return ParsedType{
+			return parsedType{
 				Value:          bindings.Array(underlying.Value),
 				TypeParameters: underlying.TypeParameters,
 				RaisedComments: underlying.RaisedComments,
@@ -729,7 +729,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		// TODO: Allow comments here
 		custom, ok := ts.parsed.customMappings[n.String()]
 		if ok {
-			return ParsedType{
+			return parsedType{
 				Value: custom,
 			}, nil
 		}
@@ -745,10 +745,10 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 
 			args, err := ts.typeParametersArgs(n)
 			if err != nil {
-				return ParsedType{}, xerrors.Errorf("type parameter arguments: %w", err)
+				return parsedType{}, xerrors.Errorf("type parameter arguments: %w", err)
 			}
 
-			parsed := ParsedType{}
+			parsed := parsedType{}
 			exprArgs := make([]bindings.ExpressionType, 0, len(args))
 			for _, arg := range args {
 				exprArgs = append(exprArgs, arg.Value)
@@ -766,7 +766,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 			// We can introspect it, but then it acts as an anonymous struct
 			// embed. Structs should be flat in their fields, so just return a
 			// reference with a comment.
-			return SimpleParsedType(ptr(bindings.KeywordUnknown)).WithComments(
+			return simpleParsedType(ptr(bindings.KeywordUnknown)).WithComments(
 				// '.Include(<pkg_path>, false)' to include this type
 				fmt.Sprintf("external type %q, to include this type the package must be explictly included in the parsing", n.String())), nil
 		}
@@ -774,7 +774,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		// Defer to the underlying type.
 		ts, err := ts.typescriptType(ty.Underlying())
 		if err != nil {
-			return ParsedType{}, xerrors.Errorf("named underlying: %w", err)
+			return parsedType{}, xerrors.Errorf("named underlying: %w", err)
 		}
 
 		return ts.WithComments(fmt.Sprintf("this is likely an enum in an external package %q", n.String())), nil
@@ -783,7 +783,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		pt := ty
 		resp, err := ts.typescriptType(pt.Elem())
 		if err != nil {
-			return ParsedType{}, xerrors.Errorf("pointer: %w", err)
+			return parsedType{}, xerrors.Errorf("pointer: %w", err)
 		}
 
 		// Golang pointers can json marshal to 'null' if they are nil
@@ -795,7 +795,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		if intf.Empty() {
 			// This field is 'interface{}'. We can't infer any type from 'interface{}'
 			// so just use "unknown" as the type.
-			parsed := SimpleParsedType(ptr(bindings.KeywordUnknown))
+			parsed := simpleParsedType(ptr(bindings.KeywordUnknown))
 			parsed.RaisedComments = append(parsed.RaisedComments, "empty interface{} type, falling back to unknown")
 			return parsed, nil
 			//return TypescriptType{
@@ -807,14 +807,14 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		if intf.NumEmbeddeds() == 1 {
 			parsedI, err := ts.typescriptType(intf.EmbeddedType(0))
 			if err != nil {
-				return ParsedType{}, xerrors.Errorf("parse interface: %w", err)
+				return parsedType{}, xerrors.Errorf("parse interface: %w", err)
 			}
 			return parsedI, nil
 		}
 
 		// Interfaces are difficult to determine the JSON type, so just return
 		// an 'unknown'.
-		parsed := SimpleParsedType(ptr(bindings.KeywordUnknown))
+		parsed := simpleParsedType(ptr(bindings.KeywordUnknown))
 		parsed.RaisedComments = append(parsed.RaisedComments, "interface type, falling back to unknown")
 		return parsed, nil
 	case *types.TypeParam:
@@ -822,7 +822,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		if !ok {
 			// If it's not an interface, it is likely a usage of generics that
 			// we have not hit yet. Feel free to add support for it.
-			return ParsedType{}, xerrors.New("type param must be an interface")
+			return parsedType{}, xerrors.New("type param must be an interface")
 		}
 
 		// type Foo[T any] struct {
@@ -839,21 +839,21 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 		switch constraintName {
 		case "comparable":
 			// TODO: Generate this on demand.
-			constraintNode = bindings.Reference(BuiltInComparable)
+			constraintNode = bindings.Reference(builtInComparable)
 			ts.includeComparable()
 		case "any":
 			constraintNode = ptr(bindings.KeywordAny)
 		default:
 			parsedGeneric, err := ts.typescriptType(generic)
 			if err != nil {
-				return ParsedType{}, xerrors.Errorf("type param %q: %w", generic.String(), err)
+				return parsedType{}, xerrors.Errorf("type param %q: %w", generic.String(), err)
 			}
 
 			// TODO: Raise comments and generics?
 			constraintNode = parsedGeneric.Value
 		}
 
-		return ParsedType{
+		return parsedType{
 			Value: bindings.Reference(name),
 			TypeParameters: []*bindings.TypeParameter{
 				{
@@ -873,7 +873,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (ParsedType, error) {
 	}
 
 	// These are all the other types we need to support.
-	return ParsedType{}, xerrors.Errorf("unknown type: %s", ty.String())
+	return parsedType{}, xerrors.Errorf("unknown type: %s", ty.String())
 }
 
 // buildStruct just prints the typescript def for a type.
@@ -922,13 +922,13 @@ func (ts *Typescript) typeParametersParameters(obj interface{ TypeParams() *type
 	return params, nil
 }
 
-func (ts *Typescript) typeParametersArgs(obj *types.Named) ([]ParsedType, error) {
+func (ts *Typescript) typeParametersArgs(obj *types.Named) ([]parsedType, error) {
 	args := obj.TypeArgs()
 	if args == nil || args.Len() == 0 {
-		return []ParsedType{}, nil
+		return []parsedType{}, nil
 	}
 
-	params := make([]ParsedType, 0, args.Len())
+	params := make([]parsedType, 0, args.Len())
 	for i := 0; i < args.Len(); i++ {
 		arg := args.At(i)
 		argType, err := ts.typescriptType(arg)

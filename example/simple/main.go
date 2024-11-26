@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/coder/gots/convert"
+	"github.com/coder/gots"
 )
 
 // SimpleType is a simple struct with a generic type
@@ -16,7 +16,7 @@ type SimpleType[T comparable] struct {
 }
 
 func main() {
-	golang, _ := convert.NewGolangParser()
+	golang, _ := gots.NewGolangParser()
 	// Generate the typescript types for this package
 	_ = golang.Include("github.com/coder/gots/example/simple", true)
 	// Map time.Time to string

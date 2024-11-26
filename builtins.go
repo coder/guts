@@ -1,17 +1,17 @@
-package convert
+package gots
 
 import "github.com/coder/gots/bindings"
 
 const (
-	BuiltInComparable = "Comparable"
+	builtInComparable = "Comparable"
 )
 
 func (ts *Typescript) includeComparable() {
 	// The zzz just pushes it to the end of the sorting.
 	// Kinda strange, but it works.
-	_ = ts.SetNode(BuiltInComparable, typescriptNode{
+	_ = ts.SetNode(builtInComparable, typescriptNode{
 		Node: &bindings.Alias{
-			Name:      BuiltInComparable,
+			Name:      builtInComparable,
 			Modifiers: []bindings.Modifier{},
 			Type: bindings.Union(
 				bindings.Reference("string"),

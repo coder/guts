@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coder/gots/convert"
+	"github.com/coder/gots"
 )
 
 func main() {
 	//ctx := context.Background()
-	gen, err := convert.NewGolangParser()
+	gen, err := gots.NewGolangParser()
 	if err != nil {
 		panic(err)
 	}
