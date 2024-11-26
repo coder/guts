@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/gots"
+	"github.com/coder/gots/config"
 	"github.com/coder/gots/mutations"
 )
 
@@ -43,13 +44,15 @@ func TestGeneration(t *testing.T) {
 			err = gen.Include("./"+dir, true)
 			require.NoError(t, err, "include %q", dir)
 
+			gen.IncludeCustomDeclaration(config.StandardMappings())
+
 			ts, err := gen.ToTypescript()
 			require.NoError(t, err, "to typescript")
 
 			// Export all top level types
-			ts.ForEach(mutations.ExportTypes())
+			ts.ForEach(config.ExportTypes())
 			// Make them read only
-			ts.ForEach(mutations.ReadOnly())
+			ts.ForEach(config.ReadOnly())
 
 			output, err := ts.Serialize()
 			require.NoErrorf(t, err, "generate %q", dir)

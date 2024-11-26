@@ -19,6 +19,8 @@ import (
 	"github.com/coder/gots/bindings"
 )
 
+type TypeOverride func() bindings.ExpressionType
+
 // GoParser takes in Golang packages, and can convert them to the intermediate
 // typescript representation. The intermediate representation is closely
 // aligned with the typescript AST.
@@ -26,11 +28,13 @@ type GoParser struct {
 	Pkgs     map[string]*packages.Package
 	Generate map[string]bool
 
-	// customMappings can override any field type with a custom type.
+	// typeOverrides can override any field type with a custom type.
+	// This needs to be a producer function, as the AST is mutated directly,
+	// and we cannot have shared references.
 	// Eg: "time.Time" -> "string"
-	customMappings map[string]bindings.ExpressionType
-	config         *packages.Config
-	fileSet        *token.FileSet
+	typeOverrides map[string]TypeOverride
+	config        *packages.Config
+	fileSet       *token.FileSet
 }
 
 func NewGolangParser() (*GoParser, error) {
@@ -47,18 +51,18 @@ func NewGolangParser() (*GoParser, error) {
 	}
 
 	return &GoParser{
-		fileSet:        fileSet,
-		config:         config,
-		Pkgs:           make(map[string]*packages.Package),
-		Generate:       map[string]bool{},
-		customMappings: map[string]bindings.ExpressionType{},
+		fileSet:       fileSet,
+		config:        config,
+		Pkgs:          make(map[string]*packages.Package),
+		Generate:      map[string]bool{},
+		typeOverrides: map[string]TypeOverride{},
 	}, nil
 }
 
 // IncludeCustomDeclaration is an advanced form of IncludeCustom.
-func (p *GoParser) IncludeCustomDeclaration(mappings map[string]bindings.ExpressionType) {
+func (p *GoParser) IncludeCustomDeclaration(mappings map[string]TypeOverride) {
 	for k, v := range mappings {
-		p.customMappings[k] = v
+		p.typeOverrides[k] = v
 	}
 }
 
@@ -67,19 +71,29 @@ func (p *GoParser) IncludeCustom(mappings map[string]string) error {
 	for k, v := range mappings {
 		switch v {
 		case "string":
-			p.customMappings[k] = ptr(bindings.KeywordString)
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return ptr(bindings.KeywordString)
+			}
 		case "number":
-			p.customMappings[k] = ptr(bindings.KeywordNumber)
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return ptr(bindings.KeywordNumber)
+			}
 		case "boolean":
-			p.customMappings[k] = ptr(bindings.KeywordBoolean)
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return ptr(bindings.KeywordBoolean)
+			}
 		case "any":
-			p.customMappings[k] = ptr(bindings.KeywordAny)
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return ptr(bindings.KeywordAny)
+			}
 		case "unknown":
-			p.customMappings[k] = ptr(bindings.KeywordUnknown)
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return ptr(bindings.KeywordUnknown)
+			}
 		default:
 			// TODO: Verify these at all?
-			p.customMappings[k] = &bindings.ReferenceType{
-				Name: v,
+			p.typeOverrides[k] = func() bindings.ExpressionType {
+				return bindings.Reference(v)
 			}
 		}
 	}
@@ -732,10 +746,10 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 		// We would need to add more logic to determine this, but for now
 		// just hard code them.
 		// TODO: Allow comments here
-		custom, ok := ts.parsed.customMappings[n.String()]
+		custom, ok := ts.parsed.typeOverrides[n.String()]
 		if ok {
 			return parsedType{
-				Value: custom,
+				Value: custom(),
 			}, nil
 		}
 

@@ -11,4 +11,5 @@ export interface NullableFields {
     readonly omitEmpty?: string;
     readonly nullable: string | null;
     readonly nullableOmitEmpty?: string | null;
+    readonly nullTime: string | null;
 }

@@ -1,4 +1,4 @@
-package mutations
+package config
 
 import "github.com/coder/gots/bindings"
 
