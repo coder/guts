@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/gots/convert"
+	"github.com/coder/gots/convert/mutations"
 )
 
 // updateGoldenFiles is a flag that can be set to update golden files.
@@ -44,6 +45,11 @@ func TestGeneration(t *testing.T) {
 
 			ts, err := gen.ToTypescript()
 			require.NoError(t, err, "to typescript")
+
+			// Export all top level types
+			ts.ForEach(mutations.ExportTypes())
+			// Make them read only
+			ts.ForEach(mutations.ReadOnly())
 
 			output, err := ts.Serialize()
 			require.NoErrorf(t, err, "generate %q", dir)

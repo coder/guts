@@ -21,7 +21,7 @@ func (b *Bindings) SerializeToTypescript(node *goja.Object) (string, error) {
 	return res.String(), nil
 }
 
-func (b *Bindings) ToTypescriptNode(ety any) (*goja.Object, error) {
+func (b *Bindings) ToTypescriptNode(ety Node) (*goja.Object, error) {
 	var siObj *goja.Object
 	var err error
 
@@ -64,8 +64,6 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 	switch ety := ety.(type) {
 	case *LiteralKeyword:
 		siObj, err = b.LiteralKeyword(ety)
-	case LiteralKeyword:
-		siObj, err = b.LiteralKeyword(&ety)
 	case *ReferenceType:
 		siObj, err = b.Reference(ety)
 	case *ArrayType:

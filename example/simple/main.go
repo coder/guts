@@ -27,7 +27,7 @@ func main() {
 	ts, _ := golang.ToTypescript()
 
 	// to see the AST tree
-	//ts.ForEach(func(key string, node *convert.TypescriptNode) {
+	//ts.ForEach(func(key string, node *convert.typescriptNode) {
 	//	walk.Walk(walk.PrintingVisitor(0), node.Node)
 	//})
 

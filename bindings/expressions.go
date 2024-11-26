@@ -5,12 +5,14 @@ import "golang.org/x/xerrors"
 // ExpressionType
 type ExpressionType interface {
 	isExpressionType()
+	Node
 }
 
 type LiteralKeyword string
 
-// TODO: Should this be a pointer?
-func (LiteralKeyword) isExpressionType() {}
+// LiteralKeyword is a pointer to be consistent with the others
+func (*LiteralKeyword) isExpressionType() {}
+func (*LiteralKeyword) isNode()           {}
 
 const (
 	KeywordVoid      LiteralKeyword = "VoidKeyword"
@@ -42,6 +44,7 @@ func ToTypescriptLiteralKeyword(word string) (LiteralKeyword, error) {
 
 type LiteralType struct {
 	Value any // should be some constant value
+	isTypescriptNode
 }
 
 func (*LiteralType) isExpressionType() {}
@@ -51,17 +54,23 @@ type ReferenceType struct {
 	Name string `json:"name"`
 	// TODO: Generics
 	Arguments []ExpressionType `json:"arguments"`
-}
 
-func (*ReferenceType) isExpressionType() {}
+	isTypescriptNode
+}
 
 func Reference(name string, args ...ExpressionType) *ReferenceType {
 	return &ReferenceType{Name: name, Arguments: args}
 }
 
+func (*ReferenceType) isExpressionType() {}
+
 type ArrayType struct {
 	Node ExpressionType
+
+	isTypescriptNode
 }
+
+func (*ArrayType) isExpressionType() {}
 
 func Array(node ExpressionType) *ArrayType {
 	return &ArrayType{
@@ -69,25 +78,29 @@ func Array(node ExpressionType) *ArrayType {
 	}
 }
 
-func (*ArrayType) isExpressionType() {}
-
 type UnionType struct {
 	Types []ExpressionType
+
+	isTypescriptNode
 }
+
+func (*UnionType) isExpressionType() {}
 
 func Union(types ...ExpressionType) *UnionType {
 	return &UnionType{Types: types}
 }
 
-func (*UnionType) isExpressionType() {}
-
-type Null struct{}
+type Null struct {
+	isTypescriptNode
+}
 
 func (*Null) isExpressionType() {}
 
 type ExpressionWithTypeArguments struct {
 	Expression ExpressionType
 	Arguments  []ExpressionType
+
+	isTypescriptNode
 }
 
 func (*ExpressionWithTypeArguments) isExpressionType() {}
@@ -95,6 +108,8 @@ func (*ExpressionWithTypeArguments) isExpressionType() {}
 type VariableDeclarationList struct {
 	Declarations []*VariableDeclaration
 	Flags        NodeFlags
+
+	isTypescriptNode
 }
 
 func (*VariableDeclarationList) isExpressionType() {}
@@ -104,10 +119,8 @@ type VariableDeclaration struct {
 	ExclamationMark bool
 	Type            ExpressionType
 	Initializer     ExpressionType
+
+	isTypescriptNode
 }
 
 func (*VariableDeclaration) isExpressionType() {}
-
-func ptr[T any](v T) *T {
-	return &v
-}

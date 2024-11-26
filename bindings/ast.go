@@ -6,6 +6,13 @@ import (
 	"github.com/dop251/goja"
 )
 
+type Node interface {
+	isNode()
+}
+type isTypescriptNode struct{}
+
+func (isTypescriptNode) isNode() {}
+
 type Identifier string
 
 type Source struct {
@@ -22,6 +29,7 @@ const (
 type HeritageClause struct {
 	Token HeritageType
 	Args  []ExpressionType
+	isTypescriptNode
 }
 
 func HeritageClauseExtends(args ...ExpressionType) *HeritageClause {
@@ -47,6 +55,7 @@ type Comment struct {
 	TrailingNewLine bool
 
 	Node *goja.Object
+	isTypescriptNode
 }
 
 type Modifier string

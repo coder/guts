@@ -9,6 +9,7 @@ import (
 // Meaning it can be serialized into valid Typescript.
 type DeclarationType interface {
 	isDeclarationType()
+	Node
 }
 
 type Interface struct {
@@ -18,6 +19,8 @@ type Interface struct {
 	Parameters []*TypeParameter
 	Heritage   []*HeritageClause
 	Source
+
+	isTypescriptNode
 }
 
 func (*Interface) isDeclarationType() {}
@@ -30,6 +33,8 @@ type PropertySignature struct {
 	Type          ExpressionType
 	// FieldComments maybe should be its own AST node?
 	FieldComments []string
+
+	isTypescriptNode
 }
 
 type Alias struct {
@@ -38,6 +43,8 @@ type Alias struct {
 	Type       ExpressionType
 	Parameters []*TypeParameter
 	Source
+
+	isTypescriptNode
 }
 
 func (*Alias) isDeclarationType() {}
@@ -55,6 +62,8 @@ type TypeParameter struct {
 	// DefaultType does not map to any Golang concepts and will never be
 	// used.
 	DefaultType ExpressionType
+
+	isTypescriptNode
 }
 
 // Simplify removes duplicate type parameters
@@ -80,6 +89,8 @@ type VariableStatement struct {
 	Modifiers    []Modifier
 	Declarations *VariableDeclarationList
 	Source
+
+	isTypescriptNode
 }
 
 func (*VariableStatement) isDeclarationType() {}
