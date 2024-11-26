@@ -69,32 +69,19 @@ func (p *GoParser) IncludeCustomDeclaration(mappings map[string]TypeOverride) {
 // IncludeCustom only works for basic literal types and non-parameterized reference types.
 func (p *GoParser) IncludeCustom(mappings map[string]string) error {
 	for k, v := range mappings {
-		switch v {
-		case "string":
-			p.typeOverrides[k] = func() bindings.ExpressionType {
-				return ptr(bindings.KeywordString)
-			}
-		case "number":
-			p.typeOverrides[k] = func() bindings.ExpressionType {
-				return ptr(bindings.KeywordNumber)
-			}
-		case "boolean":
-			p.typeOverrides[k] = func() bindings.ExpressionType {
-				return ptr(bindings.KeywordBoolean)
-			}
-		case "any":
-			p.typeOverrides[k] = func() bindings.ExpressionType {
-				return ptr(bindings.KeywordAny)
-			}
-		case "unknown":
-			p.typeOverrides[k] = func() bindings.ExpressionType {
+		// Make sure it parses
+		_, err := parseExpression(v)
+		if err != nil {
+			return fmt.Errorf("failed to parse expression %s: %w", v, err)
+		}
+
+		v := v
+		p.typeOverrides[k] = func() bindings.ExpressionType {
+			exp, err := parseExpression(v)
+			if err != nil {
 				return ptr(bindings.KeywordUnknown)
 			}
-		default:
-			// TODO: Verify these at all?
-			p.typeOverrides[k] = func() bindings.ExpressionType {
-				return bindings.Reference(v)
-			}
+			return exp
 		}
 	}
 	return nil
@@ -291,11 +278,6 @@ func (ts *Typescript) SerializeInOrder(sort func(nodes map[string]bindings.Node)
 }
 
 func (ts *Typescript) parse(obj types.Object) error {
-	if obj == nil || obj.Type() == nil {
-		slog.Info("nil object")
-		return nil
-	}
-
 	objectName := obj.Name() // Package names can collide!
 
 	switch obj := obj.(type) {
