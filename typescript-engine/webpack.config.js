@@ -13,7 +13,7 @@ const config = {
         path: path.resolve(__dirname, 'dist'),
         filename: "main.js",
         libraryTarget: 'var',
-        library: 'Gots'
+        library: 'guts'
     },
     plugins: [
         // Add your plugins here

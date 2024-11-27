@@ -1,9 +1,9 @@
-package gots
+package guts
 
 import (
 	"fmt"
 
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts/bindings"
 )
 
 type typescriptNode struct {

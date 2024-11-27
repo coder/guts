@@ -1,25 +1,25 @@
 package config
 
 import (
-	"github.com/coder/gots"
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts"
+	"github.com/coder/guts/bindings"
 )
 
-func OverrideLiteral(keyword bindings.LiteralKeyword) gots.TypeOverride {
+func OverrideLiteral(keyword bindings.LiteralKeyword) guts.TypeOverride {
 	return func() bindings.ExpressionType {
 		return ptr(keyword)
 	}
 }
 
-func OverrideNullable(t gots.TypeOverride) gots.TypeOverride {
+func OverrideNullable(t guts.TypeOverride) guts.TypeOverride {
 	return func() bindings.ExpressionType {
 		return bindings.Union(t(), &bindings.Null{})
 	}
 }
 
 // StandardMappings is a list of standard mappings for Go types to Typescript types.
-func StandardMappings() map[string]gots.TypeOverride {
-	return map[string]gots.TypeOverride{
+func StandardMappings() map[string]guts.TypeOverride {
+	return map[string]guts.TypeOverride{
 		"time.Time":     OverrideLiteral(bindings.KeywordString),
 		"time.Duration": OverrideLiteral(bindings.KeywordNumber),
 

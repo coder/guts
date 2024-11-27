@@ -1,6 +1,6 @@
-package gots
+package guts
 
-import "github.com/coder/gots/bindings"
+import "github.com/coder/guts/bindings"
 
 const (
 	builtInComparable = "Comparable"

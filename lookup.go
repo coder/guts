@@ -1,11 +1,11 @@
-package gots
+package guts
 
 import (
 	"go/types"
 	"path"
 	"path/filepath"
 
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts/bindings"
 )
 
 func (ts *Typescript) location(obj types.Object) bindings.Source {

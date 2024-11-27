@@ -4,7 +4,7 @@
 // Windows tests fail because the \n\r vs \n. It's not worth trying
 // to replace newlines for os tests. If people start using this tool on windows
 // and are seeing problems, then we can add build tags and figure it out.
-package gots_test
+package guts_test
 
 import (
 	"flag"
@@ -15,8 +15,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/coder/gots"
-	"github.com/coder/gots/config"
+	"github.com/coder/guts"
+	"github.com/coder/guts/config"
 )
 
 // updateGoldenFiles is a flag that can be set to update golden files.
@@ -36,7 +36,7 @@ func TestGeneration(t *testing.T) {
 		t.Run(f.Name(), func(t *testing.T) {
 			t.Parallel()
 
-			gen, err := gots.NewGolangParser()
+			gen, err := guts.NewGolangParser()
 			require.NoError(t, err, "new convert")
 
 			dir := filepath.Join(".", "testdata", f.Name())

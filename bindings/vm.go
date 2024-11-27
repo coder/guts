@@ -5,7 +5,7 @@ import (
 
 	"github.com/dop251/goja"
 
-	typescriptengine "github.com/coder/gots/typescript-engine"
+	typescriptengine "github.com/coder/guts/typescript-engine"
 )
 
 type Bindings struct {
@@ -25,7 +25,7 @@ func New() (*Bindings, error) {
 }
 
 func (b *Bindings) f(name string) (goja.Callable, error) {
-	f, ok := goja.AssertFunction(b.vm.Get("Gots").ToObject(b.vm).Get(name))
+	f, ok := goja.AssertFunction(b.vm.Get("guts").ToObject(b.vm).Get(name))
 	if !ok {
 		return nil, fmt.Errorf("%q is not a function", name)
 	}

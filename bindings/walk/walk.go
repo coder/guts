@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts/bindings"
 )
 
 // Visitor mimics the golang ast visitor interface.

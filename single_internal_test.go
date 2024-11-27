@@ -1,11 +1,11 @@
-package gots
+package guts
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts/bindings"
 )
 
 func TestParseSingle(t *testing.T) {

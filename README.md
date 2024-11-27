@@ -1,8 +1,8 @@
-# GoTs
+# Go Unto Ts (guts)
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/coder/gots.svg)](https://pkg.go.dev/github.com/coder/gots)
+[![Go Reference](https://pkg.go.dev/badge/github.com/coder/guts.svg)](https://pkg.go.dev/github.com/coder/guts)
 
-`GoTS` is a tool to convert golang types to typescript for enabling a consistent type definition across the frontend and backend. It is intended to be called and customized as a library, rather than as a command line tool.
+`guts` is a tool to convert golang types to typescript for enabling a consistent type definition across the frontend and backend. It is intended to be called and customized as a library, rather than as a command line tool.
 
 See the [simple example](./example/simple) for a basic usage of the library.
 ```go
@@ -30,7 +30,7 @@ interface SimpleType<T extends Comparable> {
 
 # How it works
 
-`GoTs` first parses a set of golang packages. The Go AST is traversed to find all the types defined in the packages. 
+`guts` first parses a set of golang packages. The Go AST is traversed to find all the types defined in the packages. 
 
 These types are placed into a simple AST that directly maps to the typescript AST.
 

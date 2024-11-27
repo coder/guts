@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/coder/gots"
-	"github.com/coder/gots/config"
+	"github.com/coder/guts"
+	"github.com/coder/guts/config"
 )
 
 func main() {
 	//ctx := context.Background()
-	gen, err := gots.NewGolangParser()
+	gen, err := guts.NewGolangParser()
 	if err != nil {
 		panic(err)
 	}

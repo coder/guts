@@ -1,4 +1,4 @@
-package gots
+package guts
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts/bindings"
 )
 
 // parseExpression is kinda janky, but it allows you to send in Golang types

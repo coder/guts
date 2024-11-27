@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"reflect"
 
-	"github.com/coder/gots"
-	"github.com/coder/gots/bindings"
+	"github.com/coder/guts"
+	"github.com/coder/guts/bindings"
 )
 
-func ExportTypes(ts *gots.Typescript) {
+func ExportTypes(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {
 		case *bindings.Alias:
@@ -24,7 +24,7 @@ func ExportTypes(ts *gots.Typescript) {
 	})
 }
 
-func ReadOnly(ts *gots.Typescript) {
+func ReadOnly(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {
 		case *bindings.Alias:
@@ -47,7 +47,7 @@ func ReadOnly(ts *gots.Typescript) {
 // EnumBar = "bar"
 // )
 // const MyEnums: string = ["foo", "bar"] <-- this is added
-func EnumLists(ts *gots.Typescript) {
+func EnumLists(ts *guts.Typescript) {
 	addNodes := make(map[string]bindings.Node)
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {

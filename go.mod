@@ -1,4 +1,4 @@
-module github.com/coder/gots
+module github.com/coder/guts
 
 go 1.23.0
 
