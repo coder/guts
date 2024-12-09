@@ -139,7 +139,7 @@ func (r *anyLintIgnore) Visit(node bindings.Node) (w walk.Visitor) {
 			}
 		}
 		if anyParam {
-			node.Comments = append(node.Comments, "biome-ignore lint lint/complexity/noUselessTypeConstraint")
+			node.Comments = append(node.Comments, "biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it")
 		}
 
 		return nil
