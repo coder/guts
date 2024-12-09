@@ -58,6 +58,8 @@ func Walk(v Visitor, node bindings.Node) {
 	// noop
 	case *bindings.HeritageClause:
 		walkList(v, n.Args)
+	case *bindings.OperatorNodeType:
+		Walk(v, n.Type)
 	default:
 		panic(fmt.Sprintf("convert.Walk: unexpected node type %T", n))
 	}

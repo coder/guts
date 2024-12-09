@@ -51,10 +51,14 @@ func ExportTypes(ts *guts.Typescript) {
 	})
 }
 
+// TODO: follow the AST all the way and find nested arrays
 func ReadOnly(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {
 		case *bindings.Alias:
+			if _, isArray := node.Type.(*bindings.ArrayType); isArray {
+				node.Type = bindings.OperatorNode(bindings.KeywordReadonly, node.Type)
+			}
 		case *bindings.Interface:
 			for _, prop := range node.Fields {
 				prop.Modifiers = append(prop.Modifiers, bindings.ModifierReadonly)
