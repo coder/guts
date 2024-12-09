@@ -185,8 +185,30 @@ func (r *anyLintIgnore) Visit(node bindings.Node) (w walk.Visitor) {
 			node.Comments = append(node.Comments, "biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it")
 		}
 
+		for _, field := range node.Fields {
+			h := &hasAnyVisitor{}
+			walk.Walk(h, field.Type)
+			if h.hasAnyValue {
+				field.FieldComments = append(field.FieldComments, "biome-ignore lint lint/complexity/noUselessTypeConstraint: ignore linter")
+			}
+		}
+
 		return nil
 	}
 
 	return r
+}
+
+type hasAnyVisitor struct {
+	hasAnyValue bool
+}
+
+func (h *hasAnyVisitor) Visit(node bindings.Node) walk.Visitor {
+	if isLiteral, ok := node.(*bindings.LiteralKeyword); ok {
+		if *isLiteral == bindings.KeywordAny {
+			h.hasAnyValue = true
+			return nil // stop here, the comment works for the whole field
+		}
+	}
+	return h
 }
