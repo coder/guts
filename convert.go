@@ -37,6 +37,12 @@ type GoParser struct {
 	fileSet       *token.FileSet
 }
 
+// NewGolangParser returns a new GoParser object.
+// This object is responsible for converting Go types into the intermediate
+// typescript AST representation.
+// All configuration of the GoParser should be done before calling
+// 'ToTypescript'.
+// For usage, see 'ExampleGeneration' in convert_test.go.
 func NewGolangParser() (*GoParser, error) {
 	fileSet := token.NewFileSet()
 	config := &packages.Config{
@@ -66,8 +72,18 @@ func (p *GoParser) IncludeCustomDeclaration(mappings map[string]TypeOverride) {
 	}
 }
 
-// IncludeCustom only works for basic literal types and non-parameterized reference types.
-func (p *GoParser) IncludeCustom(mappings map[string]string) error {
+type GolangType = string
+
+// IncludeCustom takes in a remapping of golang types.
+// Both the key and value of the map should be valid golang types.
+// The key is the type to override, and the value is the new type.
+// Typescript will be generated with the new type.
+//
+// Only named types can be overridden.
+// Examples:
+// "github.com/your/repo/pkg.ExampleType": "string"
+// "time.Time": "string"
+func (p *GoParser) IncludeCustom(mappings map[GolangType]GolangType) error {
 	for k, v := range mappings {
 		// Make sure it parses
 		_, err := parseExpression(v)
@@ -114,6 +130,7 @@ func (p *GoParser) Include(directory string, generate bool) error {
 }
 
 // ToTypescript translates the Go types into the intermediate typescript AST
+// The returned typescript object can be mutated before serializing.
 func (p *GoParser) ToTypescript() (*Typescript, error) {
 	typescript := &Typescript{
 		typescriptNodes: make(map[string]*typescriptNode),

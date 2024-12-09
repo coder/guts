@@ -8,6 +8,7 @@ package guts_test
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,42 @@ import (
 	"github.com/coder/guts"
 	"github.com/coder/guts/config"
 )
+
+func ExampleNewGolangParser() {
+	// gen will convert the golang package to the typescript AST.
+	// Configure it before calling ToTypescript().
+	gen, _ := guts.NewGolangParser()
+
+	// Pass in the directory of the package you want to convert.
+	// You can mark a package as 'false' to include it as a reference, but not
+	// generate types for it.
+	_ = gen.Include("github.com/coder/guts/testdata/generics", true)
+
+	// Default type mappings are useful, feel free to add your own
+	gen.IncludeCustomDeclaration(config.StandardMappings())
+	_ = gen.IncludeCustom(map[string]string{
+		// To configure a custom type for a golang type, use the full package path.
+		"github.com/coder/guts/testdata/generics.ExampleType": "string",
+		// You can use golang type syntax to specify a type.
+		"github.com/coder/guts/testdata/generics.AnotherExampleType": "map[string]*string",
+	})
+
+	// ts is the typescript AST. It can be mutated before serializing.
+	ts, _ := gen.ToTypescript()
+
+	ts.ApplyMutations(
+		// Generates a constant which lists all enum values.
+		config.EnumLists,
+		// Adds 'readonly' to all interface fields.
+		config.ReadOnly,
+		// Adds 'export' to all top level types.
+		config.ExportTypes,
+	)
+
+	output, _ := ts.Serialize()
+	// Output is the typescript file text
+	fmt.Println(output)
+}
 
 // updateGoldenFiles is a flag that can be set to update golden files.
 var updateGoldenFiles = flag.Bool("update", false, "Update golden files")
