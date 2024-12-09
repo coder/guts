@@ -274,13 +274,17 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 	return nil
 }
 
+func (ts *Typescript) ReplaceNode(key string, node bindings.Node) {
+	ts.typescriptNodes[key] = &typescriptNode{
+		Node: node,
+	}
+}
+
 func (ts *Typescript) SetNode(key string, node bindings.Node) error {
 	if _, ok := ts.typescriptNodes[key]; ok {
 		return fmt.Errorf("node %q already exists", key)
 	}
-	ts.typescriptNodes[key] = &typescriptNode{
-		Node: node,
-	}
+	ts.ReplaceNode(key, node)
 	return nil
 }
 

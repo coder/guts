@@ -91,6 +91,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		}
 	case *ArrayLiteralType:
 		siObj, err = b.ArrayLiteral(ety)
+	case *OperatorNodeType:
+		siObj, err = b.OperatorNode(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
 	}
@@ -604,5 +606,23 @@ func (b *Bindings) VariableDeclaration(decl *VariableDeclaration) (*goja.Object,
 		return nil, xerrors.Errorf("call variableDeclaration: %w", err)
 	}
 
+	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) OperatorNode(value *OperatorNodeType) (*goja.Object, error) {
+	literalF, err := b.f("typeOperatorNode")
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := b.ToTypescriptExpressionNode(value.Type)
+	if err != nil {
+		return nil, fmt.Errorf("operator type: %w", err)
+	}
+
+	res, err := literalF(goja.Undefined(), b.vm.ToValue(value.Keyword), obj)
+	if err != nil {
+		return nil, xerrors.Errorf("call numericLiteral: %w", err)
+	}
 	return res.ToObject(b.vm), nil
 }

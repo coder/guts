@@ -16,5 +16,5 @@ export interface Foo {
 
 // From codersdk/genericmap.go
 export interface FooBuzz<R extends Custom> {
-    readonly something: R[];
+    readonly something: readonly R[];
 }

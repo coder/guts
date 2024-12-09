@@ -55,7 +55,9 @@ func Walk(v Visitor, node bindings.Node) {
 	case *bindings.LiteralType:
 		// noop
 	case *bindings.Null:
-		// noop
+	// noop
+	case *bindings.HeritageClause:
+		walkList(v, n.Args)
 	default:
 		panic(fmt.Sprintf("convert.Walk: unexpected node type %T", n))
 	}

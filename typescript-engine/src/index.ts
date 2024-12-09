@@ -234,6 +234,13 @@ export function arrayLiteral(
   return ts.factory.createArrayLiteralExpression(elements);
 }
 
+export function typeOperatorNode(
+  operator: "KeyOfKeyword" | "UniqueKeyword" | "ReadonlyKeyword",
+  node: ts.TypeNode
+): ts.TypeOperatorNode {
+  return ts.factory.createTypeOperatorNode(ts.SyntaxKind[operator], node);
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -258,4 +265,5 @@ module.exports = {
   variableDeclaration: variableDeclaration,
   variableDeclarationList: variableDeclarationList,
   arrayLiteral: arrayLiteral,
+  typeOperatorNode: typeOperatorNode,
 };

@@ -10,9 +10,6 @@ import (
 type Node interface {
 	isNode()
 }
-type isTypescriptNode struct{}
-
-func (isTypescriptNode) isNode() {}
 
 type Identifier struct {
 	Name    string
@@ -57,8 +54,9 @@ const (
 type HeritageClause struct {
 	Token HeritageType
 	Args  []ExpressionType
-	isTypescriptNode
 }
+
+func (h *HeritageClause) isNode() {}
 
 func HeritageClauseExtends(args ...ExpressionType) *HeritageClause {
 	return &HeritageClause{
@@ -83,8 +81,9 @@ type Comment struct {
 	TrailingNewLine bool
 
 	Node *goja.Object
-	isTypescriptNode
 }
+
+func (c *Comment) isNode() {}
 
 type Modifier string
 

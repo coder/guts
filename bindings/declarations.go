@@ -21,10 +21,9 @@ type Interface struct {
 	// Comments maybe should be its own AST node?
 	Comments []string
 	Source
-
-	isTypescriptNode
 }
 
+func (*Interface) isNode()            {}
 func (*Interface) isDeclarationType() {}
 
 type PropertySignature struct {
@@ -35,9 +34,9 @@ type PropertySignature struct {
 	Type          ExpressionType
 	// FieldComments maybe should be its own AST node?
 	FieldComments []string
-
-	isTypescriptNode
 }
+
+func (*PropertySignature) isNode() {}
 
 type Alias struct {
 	Name       Identifier
@@ -45,10 +44,9 @@ type Alias struct {
 	Type       ExpressionType
 	Parameters []*TypeParameter
 	Source
-
-	isTypescriptNode
 }
 
+func (*Alias) isNode()            {}
 func (*Alias) isDeclarationType() {}
 
 // TypeParameter are generics in Go
@@ -64,9 +62,9 @@ type TypeParameter struct {
 	// DefaultType does not map to any Golang concepts and will never be
 	// used.
 	DefaultType ExpressionType
-
-	isTypescriptNode
 }
+
+func (h *TypeParameter) isNode() {}
 
 // Simplify removes duplicate type parameters
 func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
@@ -91,8 +89,7 @@ type VariableStatement struct {
 	Modifiers    []Modifier
 	Declarations *VariableDeclarationList
 	Source
-
-	isTypescriptNode
 }
 
+func (*VariableStatement) isNode()            {}
 func (*VariableStatement) isDeclarationType() {}

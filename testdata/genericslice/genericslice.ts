@@ -7,6 +7,6 @@ export interface Bar {
 
 // From codersdk/genericslice.go
 export interface Foo<R extends any> {
-    readonly Slice: R[];
-    readonly TwoD: R[][];
+    readonly Slice: readonly R[];
+    readonly TwoD: readonly R[][];
 }

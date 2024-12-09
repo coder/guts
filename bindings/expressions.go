@@ -27,6 +27,9 @@ const (
 	KeywordUndefined LiteralKeyword = "UndefinedKeyword"
 	KeywordUnknown   LiteralKeyword = "UnknownKeyword"
 	KeywordBigInt    LiteralKeyword = "BigIntKeyword"
+	KeywordReadonly  LiteralKeyword = "ReadonlyKeyword"
+	KeywordUnique    LiteralKeyword = "UniqueKeyword"
+	KeywordKeyOf     LiteralKeyword = "KeyOfKeyword"
 )
 
 func ToTypescriptLiteralKeyword(word string) (LiteralKeyword, error) {
@@ -44,9 +47,9 @@ func ToTypescriptLiteralKeyword(word string) (LiteralKeyword, error) {
 
 type LiteralType struct {
 	Value any // should be some constant value
-	isTypescriptNode
 }
 
+func (*LiteralType) isNode()           {}
 func (*LiteralType) isExpressionType() {}
 
 // ReferenceType can be used to reference another type by name
@@ -54,22 +57,20 @@ type ReferenceType struct {
 	Name Identifier `json:"name"`
 	// TODO: Generics
 	Arguments []ExpressionType `json:"arguments"`
-
-	isTypescriptNode
 }
 
 func Reference(name Identifier, args ...ExpressionType) *ReferenceType {
 	return &ReferenceType{Name: name, Arguments: args}
 }
 
+func (*ReferenceType) isNode()           {}
 func (*ReferenceType) isExpressionType() {}
 
 type ArrayType struct {
 	Node ExpressionType
-
-	isTypescriptNode
 }
 
+func (*ArrayType) isNode()           {}
 func (*ArrayType) isExpressionType() {}
 
 func Array(node ExpressionType) *ArrayType {
@@ -80,17 +81,16 @@ func Array(node ExpressionType) *ArrayType {
 
 type ArrayLiteralType struct {
 	Elements []ExpressionType
-	isTypescriptNode
 }
 
+func (*ArrayLiteralType) isNode()           {}
 func (*ArrayLiteralType) isExpressionType() {}
 
 type UnionType struct {
 	Types []ExpressionType
-
-	isTypescriptNode
 }
 
+func (*UnionType) isNode()           {}
 func (*UnionType) isExpressionType() {}
 
 func Union(types ...ExpressionType) *UnionType {
@@ -98,27 +98,25 @@ func Union(types ...ExpressionType) *UnionType {
 }
 
 type Null struct {
-	isTypescriptNode
 }
 
+func (*Null) isNode()           {}
 func (*Null) isExpressionType() {}
 
 type ExpressionWithTypeArguments struct {
 	Expression ExpressionType
 	Arguments  []ExpressionType
-
-	isTypescriptNode
 }
 
+func (*ExpressionWithTypeArguments) isNode()           {}
 func (*ExpressionWithTypeArguments) isExpressionType() {}
 
 type VariableDeclarationList struct {
 	Declarations []*VariableDeclaration
 	Flags        NodeFlags
-
-	isTypescriptNode
 }
 
+func (*VariableDeclarationList) isNode()           {}
 func (*VariableDeclarationList) isExpressionType() {}
 
 type VariableDeclaration struct {
@@ -126,8 +124,22 @@ type VariableDeclaration struct {
 	ExclamationMark bool
 	Type            ExpressionType
 	Initializer     ExpressionType
-
-	isTypescriptNode
 }
 
+func (*VariableDeclaration) isNode()           {}
 func (*VariableDeclaration) isExpressionType() {}
+
+type OperatorNodeType struct {
+	Keyword LiteralKeyword
+	Type    ExpressionType
+}
+
+func OperatorNode(keyword LiteralKeyword, node ExpressionType) *OperatorNodeType {
+	return &OperatorNodeType{
+		Keyword: keyword,
+		Type:    node,
+	}
+}
+
+func (*OperatorNodeType) isNode()           {}
+func (*OperatorNodeType) isExpressionType() {}

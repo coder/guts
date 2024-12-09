@@ -20,7 +20,7 @@ func ExportTypes(ts *guts.Typescript) {
 		case *bindings.VariableStatement:
 			node.Modifiers = append(node.Modifiers, bindings.ModifierExport)
 		default:
-			panic("unexpected node type for exporting")
+			panic(fmt.Sprintf("unexpected node type %T for exporting", node))
 		}
 	})
 }
@@ -32,6 +32,9 @@ func ReadOnly(ts *guts.Typescript) {
 		case *bindings.Interface:
 			for _, prop := range node.Fields {
 				prop.Modifiers = append(prop.Modifiers, bindings.ModifierReadonly)
+				if _, isArray := prop.Type.(*bindings.ArrayType); isArray {
+					prop.Type = bindings.OperatorNode(bindings.KeywordReadonly, prop.Type)
+				}
 			}
 		case *bindings.VariableStatement:
 		default:
