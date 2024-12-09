@@ -18,6 +18,8 @@ type Interface struct {
 	Fields     []*PropertySignature
 	Parameters []*TypeParameter
 	Heritage   []*HeritageClause
+	// Comments maybe should be its own AST node?
+	Comments []string
 	Source
 
 	isTypescriptNode

@@ -30,7 +30,6 @@ func main() {
 	}
 
 	ts.ApplyMutations(
-		config.MissingReferencesToAny,
 		config.EnumLists,
 		config.ExportTypes,
 		config.ReadOnly,

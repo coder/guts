@@ -23,14 +23,18 @@ func Walk(v Visitor, node bindings.Node) {
 	}
 
 	// Walk all node types
+	// If there is a missing node, please add it.
 	switch n := node.(type) {
+	case *bindings.ArrayLiteralType:
+		walkList(v, n.Elements)
 	case *bindings.ArrayType:
 		Walk(v, n.Node)
 	case *bindings.Interface:
+		walkList(v, n.Parameters)
+		walkList(v, n.Heritage)
 		walkList(v, n.Fields)
 	case *bindings.PropertySignature:
 		Walk(v, n.Type)
-		// TODO: Heritage and Parameters?
 	case *bindings.Alias:
 		Walk(v, n.Type)
 	case *bindings.TypeParameter:

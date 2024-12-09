@@ -115,60 +115,33 @@ func EnumLists(ts *guts.Typescript) {
 	}
 }
 
-// MissingReferencesToAny will change any references to types that are not found in the
-// typescript tree to 'any'.
-// These can be resolved by adding generation for the missing types.
-func MissingReferencesToAny(ts *guts.Typescript) {
-	// Find all valid references to types
-	valid := make(map[string]struct{})
+// BiomeLintIgnoreAnyTypeParameters adds a biome-ignore comment to any type parameters that are of type "any".
+// It is questionable if we should even add 'extends any' at all to the typescript.
+func BiomeLintIgnoreAnyTypeParameters(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
-		switch node.(type) {
-		case *bindings.Alias, *bindings.Interface, *bindings.VariableDeclaration:
-			valid[key] = struct{}{}
-		}
-	})
-
-	ts.ForEach(func(key string, node bindings.Node) {
-		walk.Walk(&referenceFixer{valid: valid}, node)
+		walk.Walk(&anyLintIgnore{}, node)
 	})
 }
 
-type referenceFixer struct {
-	valid map[string]struct{}
-	pkg   string
-	msgs  []string
+type anyLintIgnore struct {
 }
 
-func (r *referenceFixer) Visit(node bindings.Node) (w walk.Visitor) {
+func (r *anyLintIgnore) Visit(node bindings.Node) (w walk.Visitor) {
 	switch node := node.(type) {
-	case *bindings.ReferenceType:
-		if node.Name.Package == nil {
-			// Unpackaged types are probably builtins
-			return nil
-		}
-		if node.Name.PkgName() == r.pkg {
-			// TypeParameters (Generics) are excluded here
-			return r // Same package, skip
-		}
-		if _, ok := r.valid[node.Name.Ref()]; !ok {
-			id := node.Name.GoName()
-			// Invalid reference, change to 'any'
-			node.Name = bindings.Identifier{Name: "any"}
-			node.Arguments = []bindings.ExpressionType{}
-
-			slog.Info(fmt.Sprintf("Type %q not found, changed to 'any'", id))
-			r.msgs = append(r.msgs, fmt.Sprintf("Type %q not found, changed to 'any'", id))
-			return nil // stop walking
-		}
 	case *bindings.Interface:
-		for _, field := range node.Fields {
-			fieldFixer := &referenceFixer{
-				valid: r.valid,
-				pkg:   node.Name.PkgName(),
+		anyParam := false
+		for _, param := range node.Parameters {
+			if isLiteral, ok := param.Type.(*bindings.LiteralKeyword); ok {
+				if *isLiteral == bindings.KeywordAny {
+					anyParam = true
+					break
+				}
 			}
-			walk.Walk(fieldFixer, field.Type)
-			field.FieldComments = append(field.FieldComments, fieldFixer.msgs...)
 		}
+		if anyParam {
+			node.Comments = append(node.Comments, "biome-ignore lint lint/complexity/noUselessTypeConstraint")
+		}
+
 		return nil
 	}
 

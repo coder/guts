@@ -236,7 +236,22 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 
 	obj := res.ToObject(b.vm)
 	if ti.Source.File != "" {
-		return b.Comment(ti.Source.Comment(obj))
+		obj, err = b.Comment(ti.Source.Comment(obj))
+		if err != nil {
+			return nil, xerrors.Errorf("source comment interface: %w", err)
+		}
+	}
+
+	for _, c := range ti.Comments {
+		obj, err = b.Comment(Comment{
+			SingleLine:      true,
+			Text:            c,
+			TrailingNewLine: true,
+			Node:            obj,
+		})
+		if err != nil {
+			return nil, xerrors.Errorf("comment interface: %w", err)
+		}
 	}
 
 	return obj, nil
