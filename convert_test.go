@@ -85,7 +85,7 @@ func TestGeneration(t *testing.T) {
 
 			switch dir {
 			case "testdata/anyreference":
-				err = gen.IncludeGenerateWithPrefix("github.com/coder/guts/testdata/prefix", "Prefix")
+				err = gen.IncludeReference("github.com/coder/guts/testdata/prefix", "Prefix")
 				require.NoErrorf(t, err, "include %q", dir)
 			}
 

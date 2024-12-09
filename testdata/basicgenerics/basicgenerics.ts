@@ -3,6 +3,7 @@
 // From basicgenerics/basicgenerics.go
 export interface Basic<A extends Constraint> {
     readonly Foo: A;
+    readonly Bar: string;
 }
 
 // From basicgenerics/basicgenerics.go

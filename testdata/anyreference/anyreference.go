@@ -17,6 +17,7 @@ type String string
 type UsesPrefixPackage struct {
 	Field       prefix.Struct
 	FieldString prefix.String
+	FieldSlice  prefix.StructSlice
 }
 
 type ExternalString prefix.String

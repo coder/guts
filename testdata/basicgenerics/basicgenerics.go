@@ -6,4 +6,5 @@ type Constraint interface {
 
 type Basic[A Constraint] struct {
 	Foo A
+	Bar string
 }

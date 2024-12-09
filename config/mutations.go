@@ -135,6 +135,7 @@ func MissingReferencesToAny(ts *guts.Typescript) {
 
 type referenceFixer struct {
 	valid map[string]struct{}
+	pkg   string
 	msgs  []string
 }
 
@@ -144,6 +145,10 @@ func (r *referenceFixer) Visit(node bindings.Node) (w walk.Visitor) {
 		if node.Name.Package == nil {
 			// Unpackaged types are probably builtins
 			return nil
+		}
+		if node.Name.PkgName() == r.pkg {
+			// TypeParameters (Generics) are excluded here
+			return r // Same package, skip
 		}
 		if _, ok := r.valid[node.Name.Ref()]; !ok {
 			id := node.Name.GoName()
@@ -159,6 +164,7 @@ func (r *referenceFixer) Visit(node bindings.Node) (w walk.Visitor) {
 		for _, field := range node.Fields {
 			fieldFixer := &referenceFixer{
 				valid: r.valid,
+				pkg:   node.Name.PkgName(),
 			}
 			walk.Walk(fieldFixer, field.Type)
 			field.FieldComments = append(field.FieldComments, fieldFixer.msgs...)

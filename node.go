@@ -16,11 +16,11 @@ type typescriptNode struct {
 }
 
 func (t typescriptNode) applyMutations() (typescriptNode, error) {
-	for _, m := range t.mutations {
+	for i, m := range t.mutations {
 		var err error
 		t.Node, err = m(t.Node)
 		if err != nil {
-			return t, fmt.Errorf("apply mutation: %w", err)
+			return t, fmt.Errorf("apply mutation %d: %w", i, err)
 		}
 	}
 	t.mutations = nil

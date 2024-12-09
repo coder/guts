@@ -22,6 +22,9 @@ export interface PrefixStruct {
     readonly Field: PrefixString;
 }
 
+// From prefix/prefix.go
+export type PrefixStructSlice = PrefixStruct[];
+
 // From anyreference/anyreference.go
 export type String = string;
 
@@ -29,4 +32,5 @@ export type String = string;
 export interface UsesPrefixPackage {
     readonly Field: PrefixStruct;
     readonly FieldString: PrefixString;
+    readonly FieldSlice: PrefixStructSlice;
 }

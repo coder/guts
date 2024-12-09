@@ -31,8 +31,8 @@ type GoParser struct {
 
 	// referencedTypes is a map of all types that are referenced by the generated
 	// packages. This is to generated referenced types on demand.
-	// map[package][type]struct{}
-	referencedTypes map[string]map[string]struct{}
+	// map[package][type]generated
+	referencedTypes *referencedTypes
 
 	// typeOverrides can override any field type with a custom type.
 	// This needs to be a producer function, as the AST is mutated directly,
@@ -67,7 +67,7 @@ func NewGolangParser() (*GoParser, error) {
 		config:          config,
 		Pkgs:            make(map[string]*packages.Package),
 		Reference:       map[string]bool{},
-		referencedTypes: map[string]map[string]struct{}{},
+		referencedTypes: newReferencedTypes(),
 		Prefix:          map[string]string{},
 		typeOverrides: map[string]TypeOverride{
 			// Some hard coded defaults
@@ -148,7 +148,12 @@ func (p *GoParser) include(directory string, prefix string, reference bool) erro
 		p.Prefix[v.PkgPath] = prefix
 		if len(v.Errors) > 0 {
 			for _, e := range v.Errors {
-				slog.Error(parsePackageError(e), slog.String("error", e.Error()), slog.String("pkg", v.PkgPath))
+				slog.Error(
+					parsePackageError(e),
+					slog.String("error", e.Error()),
+					slog.String("pkg", v.PkgPath),
+					slog.String("directory", directory),
+				)
 			}
 		}
 	}
@@ -233,26 +238,38 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 				continue
 			}
 
-			// TODO: This is not deterministic. Reference packages can
-			// reference other pkgs, and the order then matters.
+			obj := pkg.Types.Scope().Lookup(ident)
+
 			if ts.parsed.Reference[pkg.PkgPath] {
-				// Skip unreferenced types from reference packages
-				refTypes, ok := ts.parsed.referencedTypes[pkg.PkgPath]
-				if !ok {
+				if !ts.parsed.referencedTypes.IsReferenced(obj) {
 					continue
 				}
-				_, ok = refTypes[ident]
-				if !ok {
-					continue
-				}
+			}
+			if ts.parsed.referencedTypes.IsGenerated(obj) {
+				continue
 			}
 
-			obj := pkg.Types.Scope().Lookup(ident)
 			err := ts.parse(obj)
 			if err != nil {
-				return fmt.Errorf("failed to parse object %q in %q: %w", ident, pkg.PkgPath, err)
+				return fmt.Errorf("parse object %q in %q: %w", ident, pkg.PkgPath, err)
 			}
+
+			ts.parsed.referencedTypes.MarkGenerated(obj)
 		}
+
+		// As long as references other things, we have to keep going.
+		err := ts.parsed.referencedTypes.Remaining(func(obj types.Object) error {
+			err := ts.parse(obj)
+			if err != nil {
+				return fmt.Errorf("parse referenced object %q: %w", pkg.PkgPath, err)
+			}
+			ts.parsed.referencedTypes.MarkGenerated(obj)
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("generated referenced types: %w", err)
+		}
+
 	}
 	return nil
 }
@@ -1046,10 +1063,7 @@ func (p *GoParser) lookupNamedReference(n *types.Named) (types.Object, bool) {
 	}
 
 	// Mark type as referenced
-	if _, ok := p.referencedTypes[obj.Pkg().Path()]; !ok {
-		p.referencedTypes[obj.Pkg().Path()] = make(map[string]struct{})
-	}
-	p.referencedTypes[obj.Pkg().Path()][obj.Name()] = struct{}{}
+	p.referencedTypes.MarkReferenced(obj)
 
 	return obj, true
 }
