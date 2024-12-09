@@ -55,40 +55,44 @@ func (r *referencedTypes) Remaining(next func(object types.Object) error) error 
 }
 
 func (r *referencedTypes) MarkReferenced(ty types.Object) {
-	r.ensurePkg(ty.Pkg().Path())
-	if _, ok := r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()]; ok {
-		return // Already added
-	}
-	r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()] = &referencedState{
-		Generated: false,
-		Object:    ty,
+	if r.state(ty) == nil {
+		r.ReferencedTypes[r.pkg(ty)][r.key(ty)] = &referencedState{
+			Generated: false,
+			Object:    ty,
+		}
 	}
 }
 
 func (r *referencedTypes) MarkGenerated(ty types.Object) {
-	r.ensurePkg(ty.Pkg().Path())
-	if _, ok := r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()]; !ok {
-		r.MarkReferenced(ty)
-	}
-	r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()].Generated = true
+	r.MarkReferenced(ty)
+	r.state(ty).Generated = true
 }
 
 func (r *referencedTypes) IsReferenced(ty types.Object) bool {
-	r.ensurePkg(ty.Pkg().Path())
-	_, ok := r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()]
-	return ok
+	return r.state(ty) != nil
 }
 
 func (r *referencedTypes) IsGenerated(ty types.Object) bool {
-	r.ensurePkg(ty.Pkg().Path())
-	if _, ok := r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()]; !ok {
-		return false
+	if state := r.state(ty); state != nil {
+		return state.Generated
 	}
-	return r.ReferencedTypes[ty.Pkg().Path()][ty.Type().String()].Generated
+	return false
 }
 
-func (r *referencedTypes) ensurePkg(pkg string) {
+func (r *referencedTypes) state(obj types.Object) *referencedState {
+	pkg := r.pkg(obj)
 	if _, ok := r.ReferencedTypes[pkg]; !ok {
 		r.ReferencedTypes[pkg] = make(map[string]*referencedState)
 	}
+
+	return r.ReferencedTypes[pkg][r.key(obj)]
+}
+
+func (r *referencedTypes) pkg(obj types.Object) string {
+	return obj.Pkg().Path()
+}
+
+func (r *referencedTypes) key(obj types.Object) string {
+	// TODO: Verify this works as a unique key
+	return obj.Type().String() + ":" + obj.Id()
 }
