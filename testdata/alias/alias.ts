@@ -7,7 +7,7 @@ export type Alias = string;
 export type AliasString = string;
 
 // From alias/alias.go
-export type AliasStringSlice = string[];
+export type AliasStringSlice = readonly string[];
 
 // From alias/alias.go
 export type Foo = string;

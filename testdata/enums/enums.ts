@@ -6,7 +6,7 @@ export type EnumInt = 10 | 5;
 export const EnumInts: EnumInt[] = [10, 5];
 
 // From codersdk/enums.go
-export type EnumSliceType = EnumString[];
+export type EnumSliceType = readonly EnumString[];
 
 // From codersdk/enums.go
 export type EnumString = "bar" | "baz" | "foo" | "qux";

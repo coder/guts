@@ -23,7 +23,7 @@ export interface PrefixStruct {
 }
 
 // From prefix/prefix.go
-export type PrefixStructSlice = PrefixStruct[];
+export type PrefixStructSlice = readonly PrefixStruct[];
 
 // From anyreference/anyreference.go
 export type String = string;

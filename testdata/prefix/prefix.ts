@@ -12,4 +12,4 @@ export interface Struct {
 }
 
 // From prefix/prefix.go
-export type StructSlice = Struct[];
+export type StructSlice = readonly Struct[];
