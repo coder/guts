@@ -28,7 +28,7 @@ func ExampleNewGolangParser() {
 	// Pass in the directory of the package you want to convert.
 	// You can mark a package as 'false' to include it as a reference, but not
 	// generate types for it.
-	_ = gen.Include("github.com/coder/guts/testdata/generics", true)
+	_ = gen.IncludeGenerate("github.com/coder/guts/testdata/generics")
 
 	// Default type mappings are useful, feel free to add your own
 	gen.IncludeCustomDeclaration(config.StandardMappings())
@@ -43,6 +43,7 @@ func ExampleNewGolangParser() {
 	ts, _ := gen.ToTypescript()
 
 	ts.ApplyMutations(
+		config.MissingReferencesToAny,
 		// Generates a constant which lists all enum values.
 		config.EnumLists,
 		// Adds 'readonly' to all interface fields.
@@ -77,8 +78,14 @@ func TestGeneration(t *testing.T) {
 			require.NoError(t, err, "new convert")
 
 			dir := filepath.Join(".", "testdata", f.Name())
-			err = gen.Include("./"+dir, true)
-			require.NoError(t, err, "include %q", dir)
+			err = gen.IncludeGenerate("./" + dir)
+			require.NoErrorf(t, err, "include %q", dir)
+
+			switch dir {
+			case "testdata/anyreference":
+				err = gen.IncludeGenerateWithPrefix("github.com/coder/guts/testdata/prefix", "Prefix")
+				require.NoErrorf(t, err, "include %q", dir)
+			}
 
 			gen.IncludeCustomDeclaration(config.StandardMappings())
 

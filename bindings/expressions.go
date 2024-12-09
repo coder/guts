@@ -51,14 +51,14 @@ func (*LiteralType) isExpressionType() {}
 
 // ReferenceType can be used to reference another type by name
 type ReferenceType struct {
-	Name string `json:"name"`
+	Name Identifier `json:"name"`
 	// TODO: Generics
 	Arguments []ExpressionType `json:"arguments"`
 
 	isTypescriptNode
 }
 
-func Reference(name string, args ...ExpressionType) *ReferenceType {
+func Reference(name Identifier, args ...ExpressionType) *ReferenceType {
 	return &ReferenceType{Name: name, Arguments: args}
 }
 
@@ -122,7 +122,7 @@ type VariableDeclarationList struct {
 func (*VariableDeclarationList) isExpressionType() {}
 
 type VariableDeclaration struct {
-	Name            string
+	Name            Identifier
 	ExclamationMark bool
 	Type            ExpressionType
 	Initializer     ExpressionType

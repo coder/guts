@@ -6,9 +6,14 @@ type Foo struct {
 }
 
 type Bar struct {
-	BarField int
+	BarField   int
+	ErrorField error
 }
 
 type GenBar[T comparable] struct {
 	GenBarField T
+}
+
+type IgnoreMe interface {
+	IgnoreMe()
 }

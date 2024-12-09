@@ -28,6 +28,14 @@ interface SimpleType<T extends Comparable> {
 }
 ```
 
+# How to use it
+
+`guts` is a library, not a command line utility. This is to allow configuration with code, and also helps with package resolution.
+
+See the [simple example](./example/simple) for a basic usage of the library.
+
+```go
+
 # How it works
 
 `guts` first parses a set of golang packages. The Go AST is traversed to find all the types defined in the packages. 

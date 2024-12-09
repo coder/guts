@@ -16,7 +16,7 @@ func main() {
 	}
 
 	for _, arg := range os.Args[1:] {
-		err = gen.Include(arg, true)
+		err = gen.IncludeGenerate(arg)
 		if err != nil {
 			panic(err)
 		}

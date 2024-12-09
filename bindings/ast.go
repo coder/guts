@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"fmt"
+	"go/types"
 
 	"github.com/dop251/goja"
 )
@@ -13,7 +14,20 @@ type isTypescriptNode struct{}
 
 func (isTypescriptNode) isNode() {}
 
-type Identifier string
+type Identifier struct {
+	Name    string
+	Package *types.Package
+	Prefix  string
+}
+
+func (i Identifier) String() string {
+	return i.Name
+}
+
+// Ref returns the identifier reference to be used in the generated code.
+func (i Identifier) Ref() string {
+	return i.Prefix + i.Name
+}
 
 type Source struct {
 	File string

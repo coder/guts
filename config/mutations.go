@@ -86,11 +86,12 @@ func EnumLists(ts *guts.Typescript) {
 					Declarations: &bindings.VariableDeclarationList{
 						Declarations: []*bindings.VariableDeclaration{
 							{
-								Name:            name,
+								// TODO: Fix this with Identifier's instead of "string"
+								Name:            bindings.Identifier{Name: name},
 								ExclamationMark: false,
 								Type: &bindings.ArrayType{
 									// The type is the enum type
-									Node: bindings.Reference(key),
+									Node: bindings.Reference(bindings.Identifier{Name: key}),
 								},
 								Initializer: &bindings.ArrayLiteralType{
 									Elements: values,
@@ -111,4 +112,39 @@ func EnumLists(ts *guts.Typescript) {
 			slog.Error(fmt.Sprintf("failed to add enum list %s: %v", name, err))
 		}
 	}
+}
+
+// MissingReferencesToAny will change any references to types that are not found in the
+// typescript tree to 'any'.
+func MissingReferencesToAny(ts *guts.Typescript) {
+	// Find all valid references to types
+	valid := make(map[string]struct{})
+	ts.ForEach(func(key string, node bindings.Node) {
+		switch node.(type) {
+		case *bindings.Alias, *bindings.Interface, *bindings.VariableDeclaration:
+			valid[key] = struct{}{}
+		}
+	})
+
+	ts.ForEach(func(key string, node bindings.Node) {
+		fixMissingReferences(valid, node)
+	})
+}
+
+func fixMissingReferences(valid map[string]struct{}, node bindings.Node) bool {
+	switch node := node.(type) {
+	case *bindings.Interface:
+		for _, field := range node.Fields {
+			if !fixMissingReferences(valid, field.Type) {
+				field.FieldComments = append(field.FieldComments, "Reference not found, changed to 'any'")
+			}
+		}
+	case *bindings.Alias:
+		if _, ok := valid[node.Name.Ref()]; !ok {
+			// Invalid reference, change to 'any'
+			node.Type = ptr(bindings.KeywordAny)
+			return false
+		}
+	}
+	return true
 }

@@ -3,6 +3,7 @@
 // From codersdk/interface.go
 export interface Bar {
     readonly BarField: number;
+    readonly ErrorField: string;
 }
 
 export type Comparable = string | number | boolean;

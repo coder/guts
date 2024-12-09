@@ -27,6 +27,7 @@ type TypeOverride func() bindings.ExpressionType
 type GoParser struct {
 	Pkgs     map[string]*packages.Package
 	Generate map[string]bool
+	Prefix   map[string]string
 
 	// typeOverrides can override any field type with a custom type.
 	// This needs to be a producer function, as the AST is mutated directly,
@@ -57,11 +58,17 @@ func NewGolangParser() (*GoParser, error) {
 	}
 
 	return &GoParser{
-		fileSet:       fileSet,
-		config:        config,
-		Pkgs:          make(map[string]*packages.Package),
-		Generate:      map[string]bool{},
-		typeOverrides: map[string]TypeOverride{},
+		fileSet:  fileSet,
+		config:   config,
+		Pkgs:     make(map[string]*packages.Package),
+		Generate: map[string]bool{},
+		Prefix:   map[string]string{},
+		typeOverrides: map[string]TypeOverride{
+			// Some hard coded defaults
+			"error": func() bindings.ExpressionType {
+				return ptr(bindings.KeywordString)
+			},
+		},
 	}, nil
 }
 
@@ -103,12 +110,24 @@ func (p *GoParser) IncludeCustom(mappings map[GolangType]GolangType) error {
 	return nil
 }
 
-// Include parses a directory and adds the parsed package to the list of packages.
-// If "generate" is set to true, it will also generate the typescript code
-// for types in the package.
-// Setting it to false just includes it as a reference package.
+// IncludeGenerate parses a directory and adds the parsed package to the list of packages.
+// These package's types will be generated.
+func (p *GoParser) IncludeGenerate(directory string) error {
+	return p.include(directory, "", true)
+}
+
+// IncludeGenerateWithPrefix will include a prefix to all output generated types.
+func (p *GoParser) IncludeGenerateWithPrefix(directory string, prefix string) error {
+	return p.include(directory, prefix, true)
+}
+
+// IncludeReference does not generate types for the package.
 // TODO: Reference packages are optional, as deps are fetched now
-func (p *GoParser) Include(directory string, generate bool) error {
+func (p *GoParser) IncludeReference(directory string) error {
+	return p.include(directory, "", false)
+}
+
+func (p *GoParser) include(directory string, prefix string, generate bool) error {
 	pkgs, err := packages.Load(p.config, directory)
 	if err != nil {
 		return fmt.Errorf("failed to parse directory %s: %w", directory, err)
@@ -120,9 +139,10 @@ func (p *GoParser) Include(directory string, generate bool) error {
 		}
 		p.Pkgs[v.PkgPath] = v
 		p.Generate[v.PkgPath] = generate
+		p.Prefix[v.PkgPath] = prefix
 		if len(v.Errors) > 0 {
 			for _, e := range v.Errors {
-				slog.Error(fmt.Sprintf("parsing pkg %s", v.PkgPath), slog.String("error", e.Error()))
+				slog.Error(parsePackageError(e), slog.String("error", e.Error()), slog.String("pkg", v.PkgPath))
 			}
 		}
 	}
@@ -159,6 +179,7 @@ type Typescript struct {
 	// typescriptNodes is a map of typescript nodes that are generated from the
 	// parsed go code. All names should be unique. If non-unique names exist, that
 	// means packages contain the same named types.
+	// TODO: the key "string" should be replaced with "Identifier"
 	typescriptNodes map[string]*typescriptNode
 	parsed          *GoParser
 	// Do not allow calling serialize more than once.
@@ -305,7 +326,7 @@ func (ts *Typescript) SerializeInOrder(sort func(nodes map[string]bindings.Node)
 }
 
 func (ts *Typescript) parse(obj types.Object) error {
-	objectName := obj.Name() // Package names can collide!
+	objectIdentifier := ts.parsed.Identifier(obj)
 
 	switch obj := obj.(type) {
 	// All named types are type declarations
@@ -327,9 +348,9 @@ func (ts *Typescript) parse(obj types.Object) error {
 			// Structs are obvious.
 			node, err := ts.buildStruct(obj, underNamed)
 			if err != nil {
-				return xerrors.Errorf("generate %q: %w", objectName, err)
+				return xerrors.Errorf("generate %q: %w", objectIdentifier.Ref(), err)
 			}
-			return ts.setNode(objectName, typescriptNode{
+			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 				Node: node,
 			})
 		case *types.Basic:
@@ -337,14 +358,14 @@ func (ts *Typescript) parse(obj types.Object) error {
 			// These are enums. Store to expand later.
 			rhs, err := ts.typescriptType(underNamed)
 			if err != nil {
-				return xerrors.Errorf("generate basic %q: %w", objectName, err)
+				return xerrors.Errorf("generate basic %q: %w", objectIdentifier.Ref(), err)
 			}
 
-			// If this has 'consts', then it is an enum. The enum code will
+			// If this has 'const's, then it is an enum. The enum code will
 			// patch this value to be more specific.
-			ts.updateNode(objectName, func(n *typescriptNode) {
+			ts.updateNode(objectIdentifier.Ref(), func(n *typescriptNode) {
 				n.Node = &bindings.Alias{
-					Name:       bindings.Identifier(objectName),
+					Name:       objectIdentifier,
 					Modifiers:  []bindings.Modifier{},
 					Type:       rhs.Value,
 					Parameters: rhs.TypeParameters,
@@ -360,12 +381,12 @@ func (ts *Typescript) parse(obj types.Object) error {
 			// These are **NOT** enums, as a map in Go would never be used for an enum.
 			ty, err := ts.typescriptType(obj.Type().Underlying())
 			if err != nil {
-				return xerrors.Errorf("(map) generate %q: %w", objectName, err)
+				return xerrors.Errorf("(map) generate %q: %w", objectIdentifier.Ref(), err)
 			}
 
-			return ts.setNode(objectName, typescriptNode{
+			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 				Node: &bindings.Alias{
-					Name:       bindings.Identifier(objectName),
+					Name:       objectIdentifier,
 					Modifiers:  []bindings.Modifier{},
 					Type:       ty.Value,
 					Parameters: ty.TypeParameters,
@@ -389,12 +410,20 @@ func (ts *Typescript) parse(obj types.Object) error {
 
 				block, err := ts.buildUnion(obj, union)
 				if err != nil {
-					return xerrors.Errorf("generate union %q: %w", objectName, err)
+					return xerrors.Errorf("generate union %q: %w", objectIdentifier.Ref(), err)
 				}
-				return ts.setNode(objectName, typescriptNode{
+				return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 					Node: block,
 				})
 			}
+
+			if underNamed.NumEmbeddeds() == 0 {
+				// type <Name> interface{}
+				// TODO: We could convert the function signatures to typescript.
+				return nil
+			}
+
+			return xerrors.Errorf("interface %q is not a union, has %d embeds and unsupported", objectIdentifier.Ref(), underNamed.NumEmbeddeds())
 		case *types.Signature:
 			// Ignore named functions.
 			return nil
@@ -415,34 +444,34 @@ func (ts *Typescript) parse(obj types.Object) error {
 			if _, ok := obj.Type().(*types.Basic); ok {
 				cnst, err := ts.constantDeclaration(obj)
 				if err != nil {
-					return xerrors.Errorf("basic const %q: %w", objectName, err)
+					return xerrors.Errorf("basic const %q: %w", objectIdentifier.Ref(), err)
 				}
-				return ts.setNode(objectName, typescriptNode{
+				return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 					Node: cnst,
 				})
 			}
-			return xerrors.Errorf("const %q is not a named type", objectName)
+			return xerrors.Errorf("const %q is not a named type", objectIdentifier.Ref())
 		}
 
 		// Treat it as an enum.
-		enumObjName := named.Obj().Name()
+		enumObjName := ts.parsed.Identifier(named.Obj())
 
 		switch named.Underlying().(type) {
 		case *types.Basic:
 		default:
-			return xerrors.Errorf("const %q is not a basic type, enums only support basic", objectName)
+			return xerrors.Errorf("const %q is not a basic type, enums only support basic", objectIdentifier.Ref())
 		}
 
 		// Grab the value of the constant. This is the enum value.
 		constValue, err := ts.constantValue(obj)
 		if err != nil {
-			return xerrors.Errorf("const %q: %w", objectName, err)
+			return xerrors.Errorf("const %q: %w", objectIdentifier.Ref(), err)
 		}
 
 		// This is a little hacky, but we need to add the enum to the Alias
 		// type. However, the order types are parsed is not guaranteed, so we
 		// add the enum to the Alias as a post-processing step.
-		ts.updateNode(enumObjName, func(n *typescriptNode) {
+		ts.updateNode(enumObjName.Ref(), func(n *typescriptNode) {
 			n.AddEnum(constValue)
 		})
 		return nil
@@ -453,7 +482,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 		return xerrors.Errorf("unsupported object type %T", obj)
 	}
 
-	return xerrors.Errorf("should never hit this")
+	return xerrors.Errorf("should never hit this, obj with type %T", obj)
 }
 
 func (ts *Typescript) constantDeclaration(obj *types.Const) (*bindings.VariableStatement, error) {
@@ -467,7 +496,7 @@ func (ts *Typescript) constantDeclaration(obj *types.Const) (*bindings.VariableS
 		Declarations: &bindings.VariableDeclarationList{
 			Declarations: []*bindings.VariableDeclaration{
 				{
-					Name:            obj.Name(),
+					Name:            ts.parsed.Identifier(obj),
 					ExclamationMark: false,
 					Initializer:     val,
 				},
@@ -500,7 +529,7 @@ func (ts *Typescript) constantValue(obj *types.Const) (*bindings.LiteralType, er
 // Generic type parameters are inferred from the type and inferred.
 func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings.Interface, error) {
 	tsi := &bindings.Interface{
-		Name:       bindings.Identifier(obj.Name()),
+		Name:       ts.parsed.Identifier(obj),
 		Modifiers:  []bindings.Modifier{},
 		Fields:     []*bindings.PropertySignature{},
 		Parameters: []*bindings.TypeParameter{},  // Generics
@@ -669,6 +698,9 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			return simpleParsedType(ptr(bindings.KeywordNumber)), nil
 		case bs.Kind() == types.String, bs.Kind() == types.Rune:
 			return simpleParsedType(ptr(bindings.KeywordString)), nil
+		case bs.Kind() == types.Invalid:
+			// TODO: Investigate why this happens
+			return simpleParsedType(ptr(bindings.KeywordAny)).WithComments("Invalid type, using 'any'. Might be a reference to any external package"), nil
 		default:
 			return parsedType{}, xerrors.Errorf("unsupported basic type %q", bs.String())
 		}
@@ -705,7 +737,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			return parsedType{}, xerrors.Errorf("simplify generics in map: %w", err)
 		}
 		parsed := parsedType{
-			Value:          bindings.Reference("Record", keyType.Value, valueType.Value),
+			Value:          bindings.Reference(builtInRecord, keyType.Value, valueType.Value),
 			TypeParameters: tp,
 			RaisedComments: append(keyType.RaisedComments, valueType.RaisedComments...),
 		}
@@ -784,7 +816,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 				parsed.TypeParameters = append(parsed.TypeParameters, arg.TypeParameters...)
 				parsed.RaisedComments = append(parsed.RaisedComments, arg.RaisedComments...)
 			}
-			parsed.Value = bindings.Reference(ref.Name(), exprArgs...)
+			parsed.Value = bindings.Reference(ts.parsed.Identifier(ref), exprArgs...)
 
 			return parsed, nil
 		}
@@ -855,8 +887,8 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 		}
 
 		// type Foo[T any] struct {
-		name := ty.Obj().Name()    // T
-		generic := ty.Constraint() // generic
+		name := ts.parsed.Identifier(ty.Obj()) // T
+		generic := ty.Constraint()             // generic
 
 		// We don't mess with multiple packages, so just trim the package path
 		// from the name.
@@ -908,7 +940,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 // buildStruct just prints the typescript def for a type.
 func (ts *Typescript) buildUnion(obj types.Object, st *types.Union) (*bindings.Alias, error) {
 	alias := &bindings.Alias{
-		Name:       bindings.Identifier(obj.Name()),
+		Name:       ts.parsed.Identifier(obj),
 		Modifiers:  []bindings.Modifier{},
 		Type:       nil,
 		Parameters: nil,
@@ -970,6 +1002,9 @@ func (ts *Typescript) typeParametersArgs(obj *types.Named) ([]parsedType, error)
 }
 
 func (p *GoParser) lookupNamedReference(n *types.Named) (types.Object, bool) {
+	if n.Obj().Pkg() == nil {
+		return nil, false
+	}
 	lookupPkg := n.Obj().Pkg().Path()
 	pkg, ok := p.Pkgs[lookupPkg]
 	if !ok {
@@ -982,6 +1017,18 @@ func (p *GoParser) lookupNamedReference(n *types.Named) (types.Object, bool) {
 		return nil, false
 	}
 	return obj, true
+}
+
+// ObjectName returns the name of the object including any prefixes defined by
+// the config.
+func (p *GoParser) Identifier(obj types.Object) bindings.Identifier {
+	name := obj.Name()
+	prefix := p.Prefix[obj.Pkg().Path()]
+	return bindings.Identifier{
+		Name:    name,
+		Prefix:  prefix,
+		Package: obj.Pkg(),
+	}
 }
 
 func ptr[T any](v T) *T {

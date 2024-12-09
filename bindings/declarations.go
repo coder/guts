@@ -56,7 +56,7 @@ func (*Alias) isDeclarationType() {}
 // - Type: Comparable
 // - DefaultType: nil
 type TypeParameter struct {
-	Name      string
+	Name      Identifier
 	Modifiers []Modifier
 	Type      ExpressionType
 	// DefaultType does not map to any Golang concepts and will never be
@@ -71,7 +71,7 @@ func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
 	params := make([]*TypeParameter, 0, len(p))
 	exists := make(map[string]*TypeParameter)
 	for _, tp := range p {
-		if found, ok := exists[tp.Name]; ok {
+		if found, ok := exists[tp.Name.Ref()]; ok {
 			// Compare types, make sure they are the same
 			equal := reflect.DeepEqual(found, tp)
 			if !equal {
@@ -80,7 +80,7 @@ func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
 			continue
 		}
 		params = append(params, tp)
-		exists[tp.Name] = tp
+		exists[tp.Name.Ref()] = tp
 	}
 	return params, nil
 }

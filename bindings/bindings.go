@@ -128,7 +128,7 @@ func (b *Bindings) Reference(ref *ReferenceType) (*goja.Object, error) {
 	}
 
 	res, err := modifier(goja.Undefined(),
-		b.vm.ToValue(ref.Name),
+		b.vm.ToValue(ref.Name.Ref()),
 		b.vm.NewArray(args...),
 	)
 	if err != nil {
@@ -225,7 +225,7 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 
 	res, err := interfaceDecl(goja.Undefined(),
 		b.vm.ToValue(ToStrings(ti.Modifiers)),
-		b.vm.ToValue(string(ti.Name)),
+		b.vm.ToValue(ti.Name.Ref()),
 		b.vm.NewArray(typeParams...),
 		b.vm.NewArray(heritage...),
 		b.vm.NewArray(fields...),
@@ -321,7 +321,7 @@ func (b *Bindings) Alias(alias *Alias) (*goja.Object, error) {
 
 	res, err := aliasFunc(goja.Undefined(),
 		b.vm.ToValue(ToStrings(alias.Modifiers)),
-		b.vm.ToValue(string(alias.Name)),
+		b.vm.ToValue(alias.Name.Ref()),
 		b.vm.NewArray(typeParams...),
 		siObj,
 	)
@@ -361,7 +361,7 @@ func (b *Bindings) TypeParameter(ty *TypeParameter) (*goja.Object, error) {
 
 	res, err := typeParamF(goja.Undefined(),
 		b.vm.ToValue(ToStrings(ty.Modifiers)),
-		b.vm.ToValue(ty.Name),
+		b.vm.ToValue(ty.Name.Ref()),
 		paramType,
 		defaultType,
 	)
@@ -580,7 +580,7 @@ func (b *Bindings) VariableDeclaration(decl *VariableDeclaration) (*goja.Object,
 
 	res, err := aliasFunc(
 		goja.Undefined(),
-		b.vm.ToValue(decl.Name),
+		b.vm.ToValue(decl.Name.Ref()),
 		b.vm.ToValue(decl.ExclamationMark),
 		declType,
 		declInit,

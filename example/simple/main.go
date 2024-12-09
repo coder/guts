@@ -18,7 +18,7 @@ type SimpleType[T comparable] struct {
 func main() {
 	golang, _ := guts.NewGolangParser()
 	// Generate the typescript types for this package
-	_ = golang.Include("github.com/coder/guts/example/simple", true)
+	_ = golang.IncludeGenerate("github.com/coder/guts/example/simple")
 	// Map time.Time to string
 	_ = golang.IncludeCustom(map[string]string{
 		"time.Time": "string",
