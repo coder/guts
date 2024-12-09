@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 
 	"github.com/coder/guts"
 	"github.com/coder/guts/bindings"
@@ -84,7 +85,17 @@ func EnumLists(ts *guts.Typescript) {
 				for _, t := range union.Types {
 					values = append(values, t)
 				}
+
+				// Pluralize the name
 				name := key + "s"
+				switch key[len(key)-1] {
+				case 'x', 's', 'z':
+					name = key + "es"
+				}
+				if strings.HasSuffix(key, "ch") || strings.HasSuffix(key, "sh") {
+					name = key + "es"
+				}
+
 				addNodes[name] = &bindings.VariableStatement{
 					Modifiers: []bindings.Modifier{},
 					Declarations: &bindings.VariableDeclarationList{
