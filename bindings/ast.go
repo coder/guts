@@ -20,6 +20,20 @@ type Identifier struct {
 	Prefix  string
 }
 
+func (i Identifier) GoName() string {
+	if i.PkgName() != "" {
+		return fmt.Sprintf("%s.%s", i.PkgName(), i.Name)
+	}
+	return i.Name
+}
+
+func (i Identifier) PkgName() string {
+	if i.Package == nil {
+		return ""
+	}
+	return i.Package.Path()
+}
+
 func (i Identifier) String() string {
 	return i.Name
 }

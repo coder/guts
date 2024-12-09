@@ -25,9 +25,14 @@ type TypeOverride func() bindings.ExpressionType
 // typescript representation. The intermediate representation is closely
 // aligned with the typescript AST.
 type GoParser struct {
-	Pkgs     map[string]*packages.Package
-	Generate map[string]bool
-	Prefix   map[string]string
+	Pkgs      map[string]*packages.Package
+	Reference map[string]bool
+	Prefix    map[string]string
+
+	// referencedTypes is a map of all types that are referenced by the generated
+	// packages. This is to generated referenced types on demand.
+	// map[package][type]struct{}
+	referencedTypes map[string]map[string]struct{}
 
 	// typeOverrides can override any field type with a custom type.
 	// This needs to be a producer function, as the AST is mutated directly,
@@ -58,11 +63,12 @@ func NewGolangParser() (*GoParser, error) {
 	}
 
 	return &GoParser{
-		fileSet:  fileSet,
-		config:   config,
-		Pkgs:     make(map[string]*packages.Package),
-		Generate: map[string]bool{},
-		Prefix:   map[string]string{},
+		fileSet:         fileSet,
+		config:          config,
+		Pkgs:            make(map[string]*packages.Package),
+		Reference:       map[string]bool{},
+		referencedTypes: map[string]map[string]struct{}{},
+		Prefix:          map[string]string{},
 		typeOverrides: map[string]TypeOverride{
 			// Some hard coded defaults
 			"error": func() bindings.ExpressionType {
@@ -113,21 +119,21 @@ func (p *GoParser) IncludeCustom(mappings map[GolangType]GolangType) error {
 // IncludeGenerate parses a directory and adds the parsed package to the list of packages.
 // These package's types will be generated.
 func (p *GoParser) IncludeGenerate(directory string) error {
-	return p.include(directory, "", true)
+	return p.include(directory, "", false)
 }
 
 // IncludeGenerateWithPrefix will include a prefix to all output generated types.
 func (p *GoParser) IncludeGenerateWithPrefix(directory string, prefix string) error {
+	return p.include(directory, prefix, false)
+}
+
+// IncludeReference only generates types if they are referenced from the generated packages.
+// This is useful for only generating a subset of the types that are being used.
+func (p *GoParser) IncludeReference(directory string, prefix string) error {
 	return p.include(directory, prefix, true)
 }
 
-// IncludeReference does not generate types for the package.
-// TODO: Reference packages are optional, as deps are fetched now
-func (p *GoParser) IncludeReference(directory string) error {
-	return p.include(directory, "", false)
-}
-
-func (p *GoParser) include(directory string, prefix string, generate bool) error {
+func (p *GoParser) include(directory string, prefix string, reference bool) error {
 	pkgs, err := packages.Load(p.config, directory)
 	if err != nil {
 		return fmt.Errorf("failed to parse directory %s: %w", directory, err)
@@ -138,7 +144,7 @@ func (p *GoParser) include(directory string, prefix string, generate bool) error
 			return fmt.Errorf("package %s already exists", v.PkgPath)
 		}
 		p.Pkgs[v.PkgPath] = v
-		p.Generate[v.PkgPath] = generate
+		p.Reference[v.PkgPath] = reference
 		p.Prefix[v.PkgPath] = prefix
 		if len(v.Errors) > 0 {
 			for _, e := range v.Errors {
@@ -192,11 +198,18 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 	// Comment format to skip typescript generation: `@typescript-ignore <ignored_type>`
 	ignoreRegex := regexp.MustCompile("@typescript-ignore[:]?(?P<ignored_types>.*)")
 
+	refPkgs := make([]*packages.Package, 0, len(ts.parsed.Pkgs))
+	genPkgs := make([]*packages.Package, 0, len(ts.parsed.Pkgs))
 	for _, pkg := range ts.parsed.Pkgs {
-		if !ts.parsed.Generate[pkg.PkgPath] {
-			continue // Skip reference packages
+		if ts.parsed.Reference[pkg.PkgPath] {
+			refPkgs = append(refPkgs, pkg)
+			continue
 		}
+		genPkgs = append(genPkgs, pkg)
+	}
 
+	// always do gen packages first to know the references
+	for _, pkg := range append(genPkgs, refPkgs...) {
 		skippedTypes := make(map[string]struct{})
 		for _, file := range pkg.Syntax {
 			for _, comment := range file.Comments {
@@ -219,6 +232,21 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 			if _, ok := skippedTypes[ident]; ok {
 				continue
 			}
+
+			// TODO: This is not deterministic. Reference packages can
+			// reference other pkgs, and the order then matters.
+			if ts.parsed.Reference[pkg.PkgPath] {
+				// Skip unreferenced types from reference packages
+				refTypes, ok := ts.parsed.referencedTypes[pkg.PkgPath]
+				if !ok {
+					continue
+				}
+				_, ok = refTypes[ident]
+				if !ok {
+					continue
+				}
+			}
+
 			obj := pkg.Types.Scope().Lookup(ident)
 			err := ts.parse(obj)
 			if err != nil {
@@ -1016,6 +1044,13 @@ func (p *GoParser) lookupNamedReference(n *types.Named) (types.Object, bool) {
 	if obj == nil {
 		return nil, false
 	}
+
+	// Mark type as referenced
+	if _, ok := p.referencedTypes[obj.Pkg().Path()]; !ok {
+		p.referencedTypes[obj.Pkg().Path()] = make(map[string]struct{})
+	}
+	p.referencedTypes[obj.Pkg().Path()][obj.Name()] = struct{}{}
+
 	return obj, true
 }
 

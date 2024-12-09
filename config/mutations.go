@@ -7,6 +7,7 @@ import (
 
 	"github.com/coder/guts"
 	"github.com/coder/guts/bindings"
+	"github.com/coder/guts/bindings/walk"
 )
 
 func ExportTypes(ts *guts.Typescript) {
@@ -116,6 +117,7 @@ func EnumLists(ts *guts.Typescript) {
 
 // MissingReferencesToAny will change any references to types that are not found in the
 // typescript tree to 'any'.
+// These can be resolved by adding generation for the missing types.
 func MissingReferencesToAny(ts *guts.Typescript) {
 	// Find all valid references to types
 	valid := make(map[string]struct{})
@@ -127,24 +129,42 @@ func MissingReferencesToAny(ts *guts.Typescript) {
 	})
 
 	ts.ForEach(func(key string, node bindings.Node) {
-		fixMissingReferences(valid, node)
+		walk.Walk(&referenceFixer{valid: valid}, node)
 	})
 }
 
-func fixMissingReferences(valid map[string]struct{}, node bindings.Node) bool {
+type referenceFixer struct {
+	valid map[string]struct{}
+	msgs  []string
+}
+
+func (r *referenceFixer) Visit(node bindings.Node) (w walk.Visitor) {
 	switch node := node.(type) {
+	case *bindings.ReferenceType:
+		if node.Name.Package == nil {
+			// Unpackaged types are probably builtins
+			return nil
+		}
+		if _, ok := r.valid[node.Name.Ref()]; !ok {
+			id := node.Name.GoName()
+			// Invalid reference, change to 'any'
+			node.Name = bindings.Identifier{Name: "any"}
+			node.Arguments = []bindings.ExpressionType{}
+
+			slog.Info(fmt.Sprintf("Type %q not found, changed to 'any'", id))
+			r.msgs = append(r.msgs, fmt.Sprintf("Type %q not found, changed to 'any'", id))
+			return nil // stop walking
+		}
 	case *bindings.Interface:
 		for _, field := range node.Fields {
-			if !fixMissingReferences(valid, field.Type) {
-				field.FieldComments = append(field.FieldComments, "Reference not found, changed to 'any'")
+			fieldFixer := &referenceFixer{
+				valid: r.valid,
 			}
+			walk.Walk(fieldFixer, field.Type)
+			field.FieldComments = append(field.FieldComments, fieldFixer.msgs...)
 		}
-	case *bindings.Alias:
-		if _, ok := valid[node.Name.Ref()]; !ok {
-			// Invalid reference, change to 'any'
-			node.Type = ptr(bindings.KeywordAny)
-			return false
-		}
+		return nil
 	}
-	return true
+
+	return r
 }

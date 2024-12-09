@@ -43,6 +43,8 @@ func ExampleNewGolangParser() {
 	ts, _ := gen.ToTypescript()
 
 	ts.ApplyMutations(
+		// Without this, some references might not exist. The typescript
+		// would not be valid on its own.
 		config.MissingReferencesToAny,
 		// Generates a constant which lists all enum values.
 		config.EnumLists,
@@ -94,6 +96,7 @@ func TestGeneration(t *testing.T) {
 
 			// Export all top level types
 			ts.ApplyMutations(
+				config.MissingReferencesToAny,
 				config.EnumLists,
 				config.ExportTypes,
 				config.ReadOnly,

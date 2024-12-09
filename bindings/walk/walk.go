@@ -15,25 +15,42 @@ type Visitor interface {
 // Walk walks the Typescript tree in depth-first order.
 // The node can be anything, would be nice to have some types.
 func Walk(v Visitor, node bindings.Node) {
+	if node == nil {
+		return
+	}
 	if v = v.Visit(node); v == nil {
 		return
 	}
 
 	// Walk all node types
 	switch n := node.(type) {
+	case *bindings.ArrayType:
+		Walk(v, n.Node)
 	case *bindings.Interface:
 		walkList(v, n.Fields)
 	case *bindings.PropertySignature:
 		Walk(v, n.Type)
+		// TODO: Heritage and Parameters?
 	case *bindings.Alias:
 		Walk(v, n.Type)
 	case *bindings.TypeParameter:
 		Walk(v, n.Type)
 	case *bindings.UnionType:
 		walkList(v, n.Types)
+	case *bindings.VariableStatement:
+		Walk(v, n.Declarations)
+	case *bindings.VariableDeclarationList:
+		walkList(v, n.Declarations)
+	case *bindings.VariableDeclaration:
+		Walk(v, n.Type)
+		Walk(v, n.Initializer)
 	case *bindings.ReferenceType:
 		// noop
 	case *bindings.LiteralKeyword:
+		// noop
+	case *bindings.LiteralType:
+		// noop
+	case *bindings.Null:
 		// noop
 	default:
 		panic(fmt.Sprintf("convert.Walk: unexpected node type %T", n))
