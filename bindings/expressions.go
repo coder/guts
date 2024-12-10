@@ -1,6 +1,10 @@
 package bindings
 
-import "golang.org/x/xerrors"
+import (
+	"fmt"
+
+	"golang.org/x/xerrors"
+)
 
 // ExpressionType
 type ExpressionType interface {
@@ -134,7 +138,15 @@ type OperatorNodeType struct {
 	Type    ExpressionType
 }
 
+// OperatorNode allows adding a keyword to a type
+// Keyword must be "KeyOfKeyword" | "UniqueKeyword" | "ReadonlyKeyword"
 func OperatorNode(keyword LiteralKeyword, node ExpressionType) *OperatorNodeType {
+	switch keyword {
+	case KeywordReadonly, KeywordUnique, KeywordKeyOf:
+	default:
+		// TODO: Would be better to raise some error here.
+		panic(fmt.Sprint("unsupported operator keyword: ", keyword))
+	}
 	return &OperatorNodeType{
 		Keyword: keyword,
 		Type:    node,

@@ -10,8 +10,10 @@ import (
 
 func (ts *Typescript) location(obj types.Object) bindings.Source {
 	file := ts.parsed.fileSet.File(obj.Pos())
+	position := file.Position(obj.Pos())
 	return bindings.Source{
 		// Do not use filepath, as that changes behavior based on OS
-		File: path.Join(obj.Pkg().Name(), filepath.Base(file.Name())),
+		File:     path.Join(obj.Pkg().Name(), filepath.Base(file.Name())),
+		Position: position,
 	}
 }

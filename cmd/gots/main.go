@@ -8,6 +8,7 @@ import (
 	"github.com/coder/guts/config"
 )
 
+// TODO: Build out a decent cli for this, just for easy experimentation.
 func main() {
 	//ctx := context.Background()
 	gen, err := guts.NewGolangParser()

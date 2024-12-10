@@ -75,8 +75,6 @@ const resultFile = ts.createSourceFile(
   ts.ScriptKind.TS
 );
 
-const savedNodes: ts.Node[] = [];
-
 // printer is used to convert AST to string
 const printer = ts.createPrinter({
   newLine: ts.NewLineKind.LineFeed,

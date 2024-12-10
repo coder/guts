@@ -5,6 +5,10 @@ import (
 	"go/types"
 )
 
+// referencedTypes is a helper struct to keep track of which types have been referenced
+// from the generated code. This is required to generate externally referenced types.
+// Since those types can also reference types, we have to continue to loop over
+// the referenced types until we don't generate anything new.
 type referencedTypes struct {
 	// ReferencedTypes is a map of package paths to a map of type strings to a boolean
 	// The bool is true if it was generated, false if it was only referenced
@@ -22,6 +26,8 @@ func newReferencedTypes() *referencedTypes {
 	}
 }
 
+// Remaining will call the next function for each type that has not been generated
+// but should be.
 func (r *referencedTypes) Remaining(next func(object types.Object) error) error {
 	// Keep looping over the referenced types until we don't generate anything new
 	// TODO: This could be optimized with a queue vs a full loop every time.

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/coder/guts"
+	"github.com/coder/guts/config"
 )
 
 // SimpleType is a simple struct with a generic type
@@ -24,7 +25,20 @@ func main() {
 		"time.Time": "string",
 	})
 
+	// Convert the golang types to typescript AST
 	ts, _ := golang.ToTypescript()
+
+	// ApplyMutations allows adding in generation opinions to the typescript output.
+	// The basic generator has no opinions, so mutations are required to make the output
+	// more usable and idiomatic.
+	ts.ApplyMutations(
+		// Export all top level types
+		config.ExportTypes,
+		// Readonly changes all fields and types to being immutable.
+		// Useful if the types are only used for api responses, which should
+		// not be modified.
+		//config.ReadOnly,
+	)
 
 	// to see the AST tree
 	//ts.ForEach(func(key string, node *convert.typescriptNode) {

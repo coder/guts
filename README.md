@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/coder/guts.svg)](https://pkg.go.dev/github.com/coder/guts)
 
-`guts` is a tool to convert golang types to typescript for enabling a consistent type definition across the frontend and backend. It is intended to be called and customized as a library, rather than as a command line tool.
+`guts` is a tool to convert golang types to typescript for enabling a consistent type definition across the frontend and backend. It is intended to be called and customized as a library, rather than as a command line executable.
 
 See the [simple example](./example/simple) for a basic usage of the library.
 ```go
@@ -32,9 +32,24 @@ interface SimpleType<T extends Comparable> {
 
 `guts` is a library, not a command line utility. This is to allow configuration with code, and also helps with package resolution.
 
-See the [simple example](./example/simple) for a basic usage of the library.
+See the [simple example](./example/simple) for a basic usage of the library. A larger example can be found in the [Coder repository](https://github.com/coder/coder/blob/a632a841d4f5666c2c1690801f88cd1a1fcffc00/scripts/apitypings/main.go).
 
 ```go
+// Step 1: Create a new Golang parser
+golang, _ := guts.NewGolangParser()
+// Step 2: Configure the parser
+_ = golang.IncludeGenerate("github.com/coder/guts/example/simple")
+// Step 3: Convert the Golang to the typescript AST
+ts, _ := golang.ToTypescript()
+// Step 4: Mutate the typescript AST
+ts.ApplyMutations(
+    config.ExportTypes, // add 'export' to all top level declarations
+)
+// Step 5: Serialize the typescript AST to a string
+output, _ := ts.Serialize()
+fmt.Println(output)
+```
+
 
 # How it works
 
@@ -42,7 +57,7 @@ See the [simple example](./example/simple) for a basic usage of the library.
 
 These types are placed into a simple AST that directly maps to the typescript AST.
 
-Using [goja](https://github.com/dop251/goja), these types are then converted to typescript using the typescript compiler API. 
+Using [goja](https://github.com/dop251/goja), these types are then serialized to typescript using the typescript compiler API. 
 
 
 # Generator Opinions

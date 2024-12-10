@@ -26,6 +26,7 @@ type Interface struct {
 func (*Interface) isNode()            {}
 func (*Interface) isDeclarationType() {}
 
+// PropertySignature is a field in an interface
 type PropertySignature struct {
 	// Name is the field name
 	Name          string
@@ -85,6 +86,9 @@ func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
 	return params, nil
 }
 
+// VariableStatement is a top level declaration of a variable
+// var foo: string = "bar"
+// const foo: string = "bar"
 type VariableStatement struct {
 	Modifiers    []Modifier
 	Declarations *VariableDeclarationList

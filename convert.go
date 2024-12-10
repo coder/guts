@@ -786,7 +786,7 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			return parsedType{}, xerrors.Errorf("simplify generics in map: %w", err)
 		}
 		parsed := parsedType{
-			Value:          bindings.Reference(builtInRecord, keyType.Value, valueType.Value),
+			Value:          RecordReference(keyType.Value, valueType.Value),
 			TypeParameters: tp,
 			RaisedComments: append(keyType.RaisedComments, valueType.RaisedComments...),
 		}

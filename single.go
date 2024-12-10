@@ -12,10 +12,14 @@ import (
 	"github.com/coder/guts/bindings"
 )
 
-// parseExpression is kinda janky, but it allows you to send in Golang types
-// to be parsed into Typescript types. Helps for type overrides.
+// parseExpression feels a bit janky, however it enables the caller to send in
+// a golang expression, eg `map[string]string`, and get back a Typescript type.
 func parseExpression(expr string) (bindings.ExpressionType, error) {
 	fs := token.NewFileSet()
+	// This line means the expression must be an expression type, not a statement.
+	// This removes the ability for things like generics. If there is a reason
+	// to allow a larger subset of golang expressions and statements, this
+	// can be changed.
 	src := fmt.Sprintf(`package main; type check = %s;`, expr)
 
 	asFile, err := parser.ParseFile(fs, "main.go", []byte(src), 0)

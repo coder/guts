@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"fmt"
+	"go/token"
 	"go/types"
 
 	"github.com/dop251/goja"
@@ -11,12 +12,16 @@ type Node interface {
 	isNode()
 }
 
+// Identifier is a name given to a variable, function, class, etc.
+// Identifiers should be unique within a package. Package information is
+// included to help with disambiguation in the case of name collisions.
 type Identifier struct {
 	Name    string
 	Package *types.Package
 	Prefix  string
 }
 
+// GoName should be a unique name for the identifier across all Go packages.
 func (i Identifier) GoName() string {
 	if i.PkgName() != "" {
 		return fmt.Sprintf("%s.%s", i.PkgName(), i.Name)
@@ -36,12 +41,16 @@ func (i Identifier) String() string {
 }
 
 // Ref returns the identifier reference to be used in the generated code.
+// This is the identifier to be used in typescript, since all generated code
+// lands in the same namespace.
 func (i Identifier) Ref() string {
 	return i.Prefix + i.Name
 }
 
+// Source is the golang file that an entity is sourced from.
 type Source struct {
-	File string
+	File     string
+	Position token.Position
 }
 
 type HeritageType string
@@ -51,6 +60,8 @@ const (
 	HeritageTypeImplements HeritageType = "implements"
 )
 
+// HeritageClause
+// interface Foo extends Bar, Baz {}
 type HeritageClause struct {
 	Token HeritageType
 	Args  []ExpressionType
