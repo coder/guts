@@ -36,6 +36,8 @@ func SimplifyOmitEmpty(ts *guts.Typescript) {
 	})
 }
 
+// ExportTypes adds 'export' to all top level types.
+// interface Foo {} --> export interface Foo{}
 func ExportTypes(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {
@@ -51,6 +53,8 @@ func ExportTypes(ts *guts.Typescript) {
 	})
 }
 
+// ReadOnly sets all interface fields to 'readonly', resulting in
+// all types being immutable.
 // TODO: follow the AST all the way and find nested arrays
 func ReadOnly(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
