@@ -41,7 +41,7 @@ func main() {
 	)
 
 	// to see the AST tree
-	//ts.ForEach(func(key string, node *convert.typescriptNode) {
+	//ts.ForEach(func(key string, node bindings.Node) {
 	//	walk.Walk(walk.PrintingVisitor(0), node.Node)
 	//})
 

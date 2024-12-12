@@ -65,7 +65,7 @@ type TypeParameter struct {
 	DefaultType ExpressionType
 }
 
-func (h *TypeParameter) isNode() {}
+func (p *TypeParameter) isNode() {}
 
 // Simplify removes duplicate type parameters
 func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
