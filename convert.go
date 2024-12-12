@@ -732,6 +732,10 @@ func (p parsedType) WithComments(comments ...string) parsedType {
 // TODO: Return comments?
 func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 	switch ty := ty.(type) {
+	case *types.Signature:
+		// TODO: Handle functions better
+		return simpleParsedType(ptr(bindings.KeywordUnknown)).
+			WithComments("Function type detected, and unsupported. Leaving the type as unknown"), nil
 	case *types.Basic:
 		bs := ty
 		// All basic literals (string, bool, int, etc).
