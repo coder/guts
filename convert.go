@@ -618,8 +618,10 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		switch typedObj := obj.Type().(type) {
 		case *types.Named:
 			typeParamed = typedObj
-		case *types.Alias:
-			typeParamed = typedObj
+		//case *types.Alias:
+		// Generic Go alias types are introduced in Go 1.23. When updated to
+		// Go 1.23, this code can be uncommented
+		//typeParamed = typedObj
 		default:
 			return tsi, xerrors.Errorf("not supported type %T for %q to parse type parameters", obj.Type(), obj.Name())
 		}
