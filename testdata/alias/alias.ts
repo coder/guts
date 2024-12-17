@@ -4,6 +4,9 @@
 export type Alias = string;
 
 // From alias/alias.go
+export type AliasNested = string;
+
+// From alias/alias.go
 export type AliasString = string;
 
 // From alias/alias.go

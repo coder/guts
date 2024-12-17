@@ -385,7 +385,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 		case *types.Named:
 			rhs = typedObj.Underlying()
 		case *types.Alias:
-			rhs = typedObj.Rhs().Underlying()
+			rhs = typedObj.Underlying()
 		default:
 			// Fall the type through... this should be ok
 			rhs = typedObj
