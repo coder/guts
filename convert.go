@@ -674,7 +674,10 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 				// Completely ignore this field.
 				continue
 			}
-			tsField.Name = jsonTag.Name
+			// Empty tags are ignored.
+			if jsonTag.Name != "" {
+				tsField.Name = jsonTag.Name
+			}
 			if len(jsonTag.Options) > 0 && jsonTag.Options[0] == "omitempty" {
 				tsField.QuestionToken = true
 			}
