@@ -155,6 +155,13 @@ func EnumLists(ts *guts.Typescript) {
 	})
 
 	for name, node := range addNodes {
+		if n, ok := ts.Node(name); ok {
+			slog.Warn(fmt.Sprintf("enum list %s cannot be added, an existing declaration with that name exists. "+
+				"To generate this enum list, the name collision must be resolved. ", name),
+				slog.String("existing", fmt.Sprintf("%s", n)))
+			continue
+		}
+
 		err := ts.SetNode(name, node)
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to add enum list %s: %v", name, err))

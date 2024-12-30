@@ -280,6 +280,14 @@ func (ts *Typescript) ReplaceNode(key string, node bindings.Node) {
 	}
 }
 
+func (ts *Typescript) Node(key string) (bindings.Node, bool) {
+	v, ok := ts.typescriptNodes[key]
+	if !ok {
+		return nil, false
+	}
+	return v.Node, true
+}
+
 func (ts *Typescript) SetNode(key string, node bindings.Node) error {
 	if _, ok := ts.typescriptNodes[key]; ok {
 		return fmt.Errorf("node %q already exists", key)
