@@ -997,6 +997,20 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 	case *types.Alias:
 		// TODO: Verify this is correct.
 		return ts.typescriptType(ty.Underlying())
+	case *types.Union:
+		allTypes := make([]bindings.ExpressionType, 0, ty.Len())
+		for i := 0; i < ty.Len(); i++ {
+			constraintType, err := ts.typescriptType(ty.Term(i).Type())
+			if err != nil {
+				return parsedType{}, xerrors.Errorf("union %q: %w", ty.String(), err)
+			}
+			allTypes = append(allTypes, constraintType.Value)
+		}
+		return parsedType{
+			Value:          bindings.Union(allTypes...),
+			TypeParameters: nil,
+			RaisedComments: nil,
+		}, nil
 	}
 
 	// These are all the other types we need to support.
