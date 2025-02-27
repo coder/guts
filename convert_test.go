@@ -96,6 +96,7 @@ func TestGeneration(t *testing.T) {
 				config.EnumLists,
 				config.ExportTypes,
 				config.ReadOnly,
+				config.NullUnionSlices,
 			)
 
 			output, err := ts.Serialize()

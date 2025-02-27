@@ -395,7 +395,7 @@ func (b *Bindings) Union(ty *UnionType) (*goja.Object, error) {
 		return nil, err
 	}
 
-	var types []interface{}
+	var types []any
 	for _, t := range ty.Types {
 		v, err := b.ToTypescriptExpressionNode(t)
 		if err != nil {

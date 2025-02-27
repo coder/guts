@@ -12,4 +12,5 @@ export interface NullableFields {
     readonly nullable: string | null;
     readonly nullableOmitEmpty?: string | null;
     readonly nullTime: string | null;
+    readonly slicePointer: readonly (string)[];
 }

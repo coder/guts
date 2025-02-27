@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/coder/guts"
@@ -222,4 +223,49 @@ func (h *hasAnyVisitor) Visit(node bindings.Node) walk.Visitor {
 		}
 	}
 	return h
+}
+
+// NullUnionSlices converts slices with nullable elements to remove the 'null'
+// type from the union.
+// This happens when a golang pointer is the element type of a slice.
+// Example:
+// GolangType: []*string
+// TsType: (string | null)[] --> (string)[]
+// TODO: Somehow remove the parenthesis from the output type.
+// Might have to change the node from a union type to it's first element.
+func NullUnionSlices(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		walk.Walk(&nullUnionVisitor{}, node)
+	})
+}
+
+type nullUnionVisitor struct{}
+
+func (v *nullUnionVisitor) Visit(node bindings.Node) walk.Visitor {
+	if array, ok := node.(*bindings.ArrayType); ok {
+		// Is array
+		if union, ok := array.Node.(*bindings.UnionType); ok {
+			hasNull := slices.ContainsFunc(union.Types, func(t bindings.ExpressionType) bool {
+				_, isNull := t.(*bindings.Null)
+				return isNull
+			})
+
+			// With union type
+			if len(union.Types) == 2 && hasNull {
+				// A union of 2 types, one being null
+				// Remove the null type
+				newTypes := make([]bindings.ExpressionType, 0, 1)
+				for _, t := range union.Types {
+					if _, isNull := t.(*bindings.Null); isNull {
+						continue
+					}
+					newTypes = append(newTypes, t)
+				}
+				union.Types = newTypes
+
+			}
+		}
+	}
+
+	return v
 }

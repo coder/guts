@@ -7,6 +7,7 @@ type NullableFields struct {
 	Nullable          *string      `json:"nullable"`
 	NullableOmitEmpty *string      `json:"nullableOmitEmpty,omitempty"`
 	NullTime          sql.NullTime `json:"nullTime"`
+	SlicePointer      []*string    `json:"slicePointer"`
 }
 
 type EmptyFields struct {
