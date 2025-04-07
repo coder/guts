@@ -806,42 +806,49 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			RaisedComments: append(keyType.RaisedComments, valueType.RaisedComments...),
 		}
 		return parsed, nil
-	case *types.Slice, *types.Array:
-		// Slice/Arrays are pretty much the same.
-		type hasElem interface {
-			Elem() types.Type
+	case *types.Array:
+		// Arrays are essentially tuples. Fixed length arrays.
+		underlying, err := ts.typescriptType(ty.Elem())
+		if err != nil {
+			return parsedType{}, xerrors.Errorf("array: %w", err)
 		}
 
-		arr, _ := ty.(hasElem)
+		if ty.Elem().String() == "byte" {
+			// [32]byte and other similar types are just strings when json marshaled.
+			// Is this ok? Should this be an opinion?
+			return simpleParsedType(ptr(bindings.KeywordString)), nil
+		}
+
+		return parsedType{
+			Value:          bindings.HomogeneousTuple(int(ty.Len()), underlying.Value),
+			TypeParameters: underlying.TypeParameters,
+			RaisedComments: underlying.RaisedComments,
+		}, nil
+	case *types.Slice:
+		//// Slice/Arrays are pretty much the same.
+		//type hasElem interface {
+		//	Elem() types.Type
+		//}
+		//
+		//arr, _ := ty.(hasElem)
 		switch {
 		// When type checking here, just use the string. You can cast it
 		// to a types.Basic and get the kind if you want too :shrug:
-		case arr.Elem().String() == "byte":
+		case ty.Elem().String() == "byte":
 			// All byte arrays are strings on the typescript.
 			// Is this ok?
-			return simpleParsedType(bindings.Array(ptr(bindings.KeywordString))), nil
+			return simpleParsedType(ptr(bindings.KeywordString)), nil
 		default:
 			// By default, just do an array of the underlying type.
-			underlying, err := ts.typescriptType(arr.Elem())
+			underlying, err := ts.typescriptType(ty.Elem())
 			if err != nil {
-				return parsedType{}, xerrors.Errorf("array: %w", err)
+				return parsedType{}, xerrors.Errorf("slice: %w", err)
 			}
-			//genValue := ""
-			//
-			//if underlying.GenericValue != "" {
-			//	genValue = "Readonly<Array<" + underlying.GenericValue + ">>"
-			//}
 			return parsedType{
 				Value:          bindings.Array(underlying.Value),
 				TypeParameters: underlying.TypeParameters,
 				RaisedComments: underlying.RaisedComments,
 			}, nil
-			//return TypescriptType{
-			//	ValueType:     "Readonly<Array<" + underlying.ValueType + ">>",
-			//	GenericValue:  genValue,
-			//	AboveTypeLine: underlying.AboveTypeLine,
-			//	GenericTypes:  underlying.GenericTypes,
-			//}, nil
 		}
 	case *types.Named:
 		n := ty

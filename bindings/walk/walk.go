@@ -29,6 +29,8 @@ func Walk(v Visitor, node bindings.Node) {
 		walkList(v, n.Elements)
 	case *bindings.ArrayType:
 		Walk(v, n.Node)
+	case *bindings.TupleType:
+		Walk(v, n.Node)
 	case *bindings.Interface:
 		walkList(v, n.Parameters)
 		walkList(v, n.Heritage)

@@ -66,6 +66,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.LiteralKeyword(ety)
 	case *ReferenceType:
 		siObj, err = b.Reference(ety)
+	case *TupleType:
+		siObj, err = b.Tuple(ety.Length, ety.Node)
 	case *ArrayType:
 		siObj, err = b.Array(ety.Node)
 	case *UnionType:
@@ -310,6 +312,24 @@ func (b *Bindings) Array(arrType ExpressionType) (*goja.Object, error) {
 	}
 
 	res, err := array(goja.Undefined(), siObj)
+	if err != nil {
+		return nil, xerrors.Errorf("call arrayType: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) Tuple(length int, tupleType ExpressionType) (*goja.Object, error) {
+	tuple, err := b.f("homogeneousTupleType")
+	if err != nil {
+		return nil, err
+	}
+
+	siObj, err := b.ToTypescriptExpressionNode(tupleType)
+	if err != nil {
+		return nil, fmt.Errorf("array type: %w", err)
+	}
+
+	res, err := tuple(goja.Undefined(), b.vm.ToValue(length), siObj)
 	if err != nil {
 		return nil, xerrors.Errorf("call arrayType: %w", err)
 	}

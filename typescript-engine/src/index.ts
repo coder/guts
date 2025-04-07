@@ -107,6 +107,11 @@ export function arrayType(node: ts.TypeNode): ts.ArrayTypeNode {
   return ts.factory.createArrayTypeNode(node);
 }
 
+export function homogeneousTupleType(length: number, node: ts.TypeNode): ts.TupleTypeNode {
+  const nodes = Array.from({ length }, () => node);
+  return ts.factory.createTupleTypeNode(nodes);
+}
+
 export function aliasDecl(
   modifiers: readonly modifierKeys[] | readonly ts.Modifier[] | undefined,
   name: ts.Identifier | string,
@@ -248,6 +253,7 @@ module.exports = {
   toTypescript: toTypescript,
   interfaceDecl: interfaceDecl,
   literalKeyword: literalKeyword,
+  homogeneousTupleType: homogeneousTupleType,
   arrayType: arrayType,
   aliasDecl: aliasDecl,
   typeParameterDeclaration: typeParameterDeclaration,

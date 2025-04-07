@@ -56,3 +56,5 @@ type UnusedGeneric[B any] struct {
 type UseUnused BasicGeneric[UnusedGeneric[int]]
 type UseUnusedWithGen[T any] BasicGeneric[UnusedGeneric[T]]
 type UseUnusedAlias BasicGeneric[UnusedGeneric[UnusedGeneric[int]]]
+
+type AliasGeneric[A any] = BasicGeneric[A]

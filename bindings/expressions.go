@@ -70,6 +70,23 @@ func Reference(name Identifier, args ...ExpressionType) *ReferenceType {
 func (*ReferenceType) isNode()           {}
 func (*ReferenceType) isExpressionType() {}
 
+type TupleType struct {
+	// TODO: Technically tuples can be heterogeneous, but golang does not really
+	// support that. So just assume that all elements are the same type.
+	Node   ExpressionType
+	Length int
+}
+
+func (*TupleType) isNode()           {}
+func (*TupleType) isExpressionType() {}
+
+func HomogeneousTuple(length int, node ExpressionType) *TupleType {
+	return &TupleType{
+		Node:   node,
+		Length: length,
+	}
+}
+
 type ArrayType struct {
 	Node ExpressionType
 }
