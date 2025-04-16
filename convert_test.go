@@ -117,3 +117,27 @@ func TestGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestNotNullMaps(t *testing.T) {
+	gen, err := guts.NewGolangParser()
+	require.NoError(t, err, "new convert")
+
+	dir := filepath.Join(".", "testdata", "maps")
+	err = gen.IncludeGenerate("./" + dir)
+	require.NoErrorf(t, err, "include %q", dir)
+
+	gen.IncludeCustomDeclaration(config.StandardMappings())
+
+	ts, err := gen.ToTypescript()
+	require.NoError(t, err, "to typescript")
+
+	ts.ApplyMutations(
+		config.NotNullMaps,
+	)
+
+	output, err := ts.Serialize()
+	require.NoErrorf(t, err, "generate %q", dir)
+
+	// Not perfect, this asserts if the record is a nullable type.
+	require.Contains(t, output, "SimpleMap: Record<string, string>;", "no nullable Record")
+}
