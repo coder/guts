@@ -269,3 +269,39 @@ func (v *nullUnionVisitor) Visit(node bindings.Node) walk.Visitor {
 
 	return v
 }
+
+// NotNullMaps assumes all maps will not be null.
+// Example:
+// GolangType: map[string]string
+// TsType: Record<string,string> | null --> Record<string,string>
+func NotNullMaps(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		walk.Walk(&notNullMaps{}, node)
+	})
+}
+
+type notNullMaps struct{}
+
+func (v *notNullMaps) Visit(node bindings.Node) walk.Visitor {
+	if union, ok := node.(*bindings.UnionType); ok && len(union.Types) == 2 {
+		hasNull := slices.ContainsFunc(union.Types, func(t bindings.ExpressionType) bool {
+			_, isNull := t.(*bindings.Null)
+			return isNull
+		})
+
+		var record bindings.ExpressionType
+		index := slices.IndexFunc(union.Types, func(t bindings.ExpressionType) bool {
+			ref, isRef := t.(*bindings.ReferenceType)
+			if !isRef {
+				return false
+			}
+			return ref.Name.Name == "Record"
+		})
+		if hasNull && index != -1 {
+			record = union.Types[index]
+			union.Types = []bindings.ExpressionType{record}
+		}
+	}
+
+	return v
+}

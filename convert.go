@@ -801,7 +801,8 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			return parsedType{}, xerrors.Errorf("simplify generics in map: %w", err)
 		}
 		parsed := parsedType{
-			Value:          RecordReference(keyType.Value, valueType.Value),
+			// Golang `map` can be marshaled to `null` in json.
+			Value:          bindings.Union(RecordReference(keyType.Value, valueType.Value), &bindings.Null{}),
 			TypeParameters: tp,
 			RaisedComments: append(keyType.RaisedComments, valueType.RaisedComments...),
 		}
