@@ -2,7 +2,7 @@
 
 // From anyreference/anyreference.go
 export interface Example {
-    readonly Value: Record<string, string>;
+    readonly Value: Record<string, string> | null;
 }
 
 // From anyreference/anyreference.go

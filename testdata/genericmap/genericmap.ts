@@ -18,3 +18,13 @@ export interface Foo {
 export interface FooBuzz<R extends Custom> {
     readonly something: readonly R[];
 }
+
+// From codersdk/genericmap.go
+export interface FooBuzzAnonymousUnion<R extends Foo | Buzz> {
+    readonly something: readonly R[];
+}
+
+// From codersdk/genericmap.go
+export interface FooBuzzMap<R extends Custom> {
+    readonly something: Record<string, R> | null;
+}

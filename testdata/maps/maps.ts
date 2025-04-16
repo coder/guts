@@ -2,7 +2,7 @@
 
 // From maps/map.go
 export interface Bar<T extends any> {
-    readonly SimpleMap: Record<string, string>;
-    readonly NumberMap: Record<string, number>;
-    readonly GenericMap: Record<string, T>;
+    readonly SimpleMap: Record<string, string> | null;
+    readonly NumberMap: Record<string, number> | null;
+    readonly GenericMap: Record<string, T> | null;
 }
