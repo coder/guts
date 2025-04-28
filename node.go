@@ -27,22 +27,26 @@ func (t typescriptNode) applyMutations() (typescriptNode, error) {
 	return t, nil
 }
 
-func (t *typescriptNode) AddEnum(enum bindings.ExpressionType) {
+func (t *typescriptNode) AddEnum(member *bindings.EnumMember) {
 	t.mutations = append(t.mutations, func(v bindings.Node) (bindings.Node, error) {
 		alias, ok := v.(*bindings.Alias)
-		if !ok {
-			return nil, fmt.Errorf("expected alias type, got %T", t.Node)
+		if ok {
+			// Switch to an enum
+			enum := &bindings.Enum{
+				Name:      alias.Name,
+				Modifiers: alias.Modifiers,
+				Members:   []*bindings.EnumMember{member},
+				Source:    alias.Source,
+			}
+			return enum, nil
 		}
 
-		union, ok := alias.Type.(*bindings.UnionType)
+		enum, ok := v.(*bindings.Enum)
 		if !ok {
-			// Make it a union, this removes the original type.
-			union = bindings.Union()
-			alias.Type = union
+			return v, fmt.Errorf("expected enum, got %T", v)
 		}
 
-		union.Types = append(union.Types, enum)
-		alias.Type = union
-		return alias, nil
+		enum.Members = append(enum.Members, member)
+		return enum, nil
 	})
 }

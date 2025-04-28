@@ -529,7 +529,10 @@ func (ts *Typescript) parse(obj types.Object) error {
 		// type. However, the order types are parsed is not guaranteed, so we
 		// add the enum to the Alias as a post-processing step.
 		ts.updateNode(enumObjName.Ref(), func(n *typescriptNode) {
-			n.AddEnum(constValue)
+			n.AddEnum(&bindings.EnumMember{
+				Name:  obj.Name(),
+				Value: constValue,
+			})
 		})
 		return nil
 	case *types.Func:

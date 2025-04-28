@@ -43,6 +43,8 @@ func Walk(v Visitor, node bindings.Node) {
 		Walk(v, n.Type)
 	case *bindings.UnionType:
 		walkList(v, n.Types)
+	case *bindings.Enum:
+		walkList(v, n.Members)
 	case *bindings.VariableStatement:
 		Walk(v, n.Declarations)
 	case *bindings.VariableDeclarationList:
@@ -62,6 +64,8 @@ func Walk(v Visitor, node bindings.Node) {
 		walkList(v, n.Args)
 	case *bindings.OperatorNodeType:
 		Walk(v, n.Type)
+	case *bindings.EnumMember:
+		Walk(v, n.Value)
 	default:
 		panic(fmt.Sprintf("convert.Walk: unexpected node type %T", n))
 	}

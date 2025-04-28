@@ -91,13 +91,44 @@ func TestGeneration(t *testing.T) {
 			ts, err := gen.ToTypescript()
 			require.NoError(t, err, "to typescript")
 
-			// Export all top level types
-			ts.ApplyMutations(
+			mutations := []func(typescript *guts.Typescript){
+				config.EnumAsTypes,
 				config.EnumLists,
 				config.ExportTypes,
 				config.ReadOnly,
 				config.NullUnionSlices,
-			)
+			}
+
+			mutsCSV, err := os.ReadFile(filepath.Join(dir, "mutations"))
+			if err == nil {
+				mutations = make([]func(typescript *guts.Typescript), 0)
+				// load specific mutations
+				muts := strings.Split(strings.TrimSpace(string(mutsCSV)), ",")
+				for _, m := range muts {
+					switch m {
+					case "EnumAsTypes":
+						mutations = append(mutations, config.EnumAsTypes)
+					case "EnumLists":
+						mutations = append(mutations, config.EnumLists)
+					case "ExportTypes":
+						mutations = append(mutations, config.ExportTypes)
+					case "ReadOnly":
+						mutations = append(mutations, config.ReadOnly)
+					case "NullUnionSlices":
+						mutations = append(mutations, config.NullUnionSlices)
+					case "TrimEnumPrefix":
+						mutations = append(mutations, config.TrimEnumPrefix)
+					default:
+						t.Fatal("unknown mutation, add it to the list:", m)
+					}
+					t.Logf("using mutation %s", m)
+				}
+			} else {
+				t.Logf("using default mutations")
+			}
+
+			// Export all top level types
+			ts.ApplyMutations(mutations...)
 
 			output, err := ts.Serialize()
 			require.NoErrorf(t, err, "generate %q", dir)

@@ -231,6 +231,29 @@ export function variableDeclaration(
   );
 }
 
+export function enumDeclaration(
+  modifiers: readonly modifierKeys[] | readonly ts.Modifier[] | undefined,
+  name: ts.Identifier | string,
+  members: ts.EnumMember[],
+): ts.EnumDeclaration {
+  return ts.factory.createEnumDeclaration(
+    modifiers?.map((m) => modifier(m)),
+    identifier(name),
+    members,
+  );
+}
+
+export function enumMember(
+  name: string,
+  node: ts.Expression
+): ts.EnumMember {
+  return ts.factory.createEnumMember(
+    name,
+    node
+  );
+}
+
+
 export function arrayLiteral(
   elements: ts.Expression[]
 ): ts.ArrayLiteralExpression {
@@ -270,4 +293,6 @@ module.exports = {
   variableDeclarationList: variableDeclarationList,
   arrayLiteral: arrayLiteral,
   typeOperatorNode: typeOperatorNode,
+  enumDeclaration: enumDeclaration,
+  enumMember: enumMember,
 };

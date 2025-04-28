@@ -50,6 +50,8 @@ func (b *Bindings) ToTypescriptDeclarationNode(ety DeclarationType) (*goja.Objec
 		siObj, err = b.Alias(ety)
 	case *VariableStatement:
 		siObj, err = b.VariableStatement(ety)
+	case *Enum:
+		siObj, err = b.EnumDeclaration(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for declaration type: %T", ety)
 	}
@@ -72,6 +74,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.Array(ety.Node)
 	case *UnionType:
 		siObj, err = b.Union(ety)
+	case *EnumMember:
+		siObj, err = b.EnumMember(ety)
 	case *Null:
 		siObj, err = b.Null()
 	case *VariableDeclarationList:
@@ -645,4 +649,57 @@ func (b *Bindings) OperatorNode(value *OperatorNodeType) (*goja.Object, error) {
 		return nil, xerrors.Errorf("call numericLiteral: %w", err)
 	}
 	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) EnumMember(value *EnumMember) (*goja.Object, error) {
+	literalF, err := b.f("enumMember")
+	if err != nil {
+		return nil, err
+	}
+
+	obj := goja.Undefined()
+	if value.Value != nil {
+		obj, err = b.ToTypescriptExpressionNode(value.Value)
+		if err != nil {
+			return nil, fmt.Errorf("enum member type: %w", err)
+		}
+	}
+
+	res, err := literalF(goja.Undefined(), b.vm.ToValue(value.Name), obj)
+	if err != nil {
+		return nil, xerrors.Errorf("call enumMember: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) EnumDeclaration(e *Enum) (*goja.Object, error) {
+	aliasFunc, err := b.f("enumDeclaration")
+	if err != nil {
+		return nil, err
+	}
+
+	var members []any
+	for _, m := range e.Members {
+		v, err := b.ToTypescriptExpressionNode(m)
+		if err != nil {
+			return nil, fmt.Errorf("enum type: %w", err)
+		}
+		members = append(members, v)
+	}
+
+	res, err := aliasFunc(goja.Undefined(),
+		b.vm.ToValue(ToStrings(e.Modifiers)),
+		b.vm.ToValue(e.Name.Ref()),
+		b.vm.NewArray(members...),
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("call enumDeclaration: %w", err)
+	}
+
+	obj := res.ToObject(b.vm)
+	if e.Source.File != "" {
+		return b.Comment(e.Source.Comment(obj))
+	}
+
+	return obj, nil
 }
