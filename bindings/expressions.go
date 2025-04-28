@@ -172,3 +172,12 @@ func OperatorNode(keyword LiteralKeyword, node ExpressionType) *OperatorNodeType
 
 func (*OperatorNodeType) isNode()           {}
 func (*OperatorNodeType) isExpressionType() {}
+
+type EnumMember struct {
+	Name string
+	// Value is allowed to be nil, which results in `undefined`.
+	Value ExpressionType
+}
+
+func (*EnumMember) isNode()           {}
+func (*EnumMember) isExpressionType() {}

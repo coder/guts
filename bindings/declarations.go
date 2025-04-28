@@ -97,3 +97,13 @@ type VariableStatement struct {
 
 func (*VariableStatement) isNode()            {}
 func (*VariableStatement) isDeclarationType() {}
+
+type Enum struct {
+	Name      Identifier
+	Modifiers []Modifier
+	Members   []*EnumMember
+	Source
+}
+
+func (*Enum) isNode()            {}
+func (*Enum) isDeclarationType() {}

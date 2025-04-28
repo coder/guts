@@ -48,6 +48,8 @@ func ExportTypes(ts *guts.Typescript) {
 			node.Modifiers = append(node.Modifiers, bindings.ModifierExport)
 		case *bindings.VariableStatement:
 			node.Modifiers = append(node.Modifiers, bindings.ModifierExport)
+		case *bindings.Enum:
+			node.Modifiers = append(node.Modifiers, bindings.ModifierExport)
 		default:
 			panic(fmt.Sprintf("unexpected node type %T for exporting", node))
 		}
@@ -72,9 +74,67 @@ func ReadOnly(ts *guts.Typescript) {
 				}
 			}
 		case *bindings.VariableStatement:
+		case *bindings.Enum:
+			// Enums are immutable by default
 		default:
 			panic("unexpected node type for exporting")
 		}
+	})
+}
+
+//func UseEnums(ts *guts.Typescript) {
+//	ts.ForEach(func(key string, node bindings.Node) {
+//		al, union, ok := isGoEnum(node)
+//		if !ok {
+//			return
+//		}
+//
+//		members := make([]*bindings.EnumMember, 0, len(union.Types))
+//		for _, t := range union.Types {
+//			literal, ok := t.(*bindings.LiteralType)
+//			if !ok {
+//				slog.Warn(fmt.Sprintf("enum %s has a non-literal type %T", key, t))
+//				continue
+//			}
+//
+//			members = append(members, &bindings.EnumMember{
+//				Name: literal.Value.(string),
+//			})
+//		}
+//
+//		// Switch to an enum type
+//		ts.ReplaceNode(key, &bindings.Enum{
+//			Name:      al.Name,
+//			Modifiers: al.Modifiers,
+//			Members:   members,
+//			Source:    al.Source,
+//		})
+//	})
+//}
+
+// EnumAsTypes
+func EnumAsTypes(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		enum, ok := node.(*bindings.Enum)
+		if !ok {
+			return
+		}
+
+		// Convert the enum to a union type
+		union := &bindings.UnionType{
+			Types: make([]bindings.ExpressionType, 0, len(enum.Members)),
+		}
+		for _, member := range enum.Members {
+			union.Types = append(union.Types, member.Value)
+		}
+
+		// Replace the enum with an alias type
+		ts.ReplaceNode(key, &bindings.Alias{
+			Name:      enum.Name,
+			Modifiers: enum.Modifiers,
+			Type:      union,
+			Source:    enum.Source,
+		})
 	})
 }
 
@@ -86,72 +146,53 @@ func ReadOnly(ts *guts.Typescript) {
 // EnumBar = "bar"
 // )
 // const MyEnums: string = ["foo", "bar"] <-- this is added
+// TODO: Enums were changed to use proper enum types. This should be
+//   updated to support that.
 func EnumLists(ts *guts.Typescript) {
 	addNodes := make(map[string]bindings.Node)
 	ts.ForEach(func(key string, node bindings.Node) {
-		switch node := node.(type) {
 		// Find the enums, and make a list of values.
 		// Only support primitive types.
-		case *bindings.Alias:
-			if union, ok := node.Type.(*bindings.UnionType); ok {
-				if len(union.Types) == 0 {
-					return
-				}
+		_, union, ok := isGoEnum(node)
+		if !ok {
+			return
+		}
 
-				var expectedType *bindings.LiteralType
-				// This might be a union type, if all elements are the same literal type.
-				for _, t := range union.Types {
-					value, ok := t.(*bindings.LiteralType)
-					if !ok {
-						return
-					}
-					if expectedType == nil {
-						expectedType = value
-						continue
-					}
+		values := make([]bindings.ExpressionType, 0, len(union.Types))
+		for _, t := range union.Types {
+			values = append(values, t)
+		}
 
-					if reflect.TypeOf(expectedType.Value) != reflect.TypeOf(value.Value) {
-						return
-					}
-				}
+		// Pluralize the name
+		name := key + "s"
+		switch key[len(key)-1] {
+		case 'x', 's', 'z':
+			name = key + "es"
+		}
+		if strings.HasSuffix(key, "ch") || strings.HasSuffix(key, "sh") {
+			name = key + "es"
+		}
 
-				values := make([]bindings.ExpressionType, 0, len(union.Types))
-				for _, t := range union.Types {
-					values = append(values, t)
-				}
-
-				// Pluralize the name
-				name := key + "s"
-				switch key[len(key)-1] {
-				case 'x', 's', 'z':
-					name = key + "es"
-				}
-				if strings.HasSuffix(key, "ch") || strings.HasSuffix(key, "sh") {
-					name = key + "es"
-				}
-
-				addNodes[name] = &bindings.VariableStatement{
-					Modifiers: []bindings.Modifier{},
-					Declarations: &bindings.VariableDeclarationList{
-						Declarations: []*bindings.VariableDeclaration{
-							{
-								// TODO: Fix this with Identifier's instead of "string"
-								Name:            bindings.Identifier{Name: name},
-								ExclamationMark: false,
-								Type: &bindings.ArrayType{
-									// The type is the enum type
-									Node: bindings.Reference(bindings.Identifier{Name: key}),
-								},
-								Initializer: &bindings.ArrayLiteralType{
-									Elements: values,
-								},
-							},
+		addNodes[name] = &bindings.VariableStatement{
+			Modifiers: []bindings.Modifier{},
+			Declarations: &bindings.VariableDeclarationList{
+				Declarations: []*bindings.VariableDeclaration{
+					{
+						// TODO: Fix this with Identifier's instead of "string"
+						Name:            bindings.Identifier{Name: name},
+						ExclamationMark: false,
+						Type: &bindings.ArrayType{
+							// The type is the enum type
+							Node: bindings.Reference(bindings.Identifier{Name: key}),
 						},
-						Flags: bindings.NodeFlagsConstant,
+						Initializer: &bindings.ArrayLiteralType{
+							Elements: values,
+						},
 					},
-					Source: bindings.Source{},
-				}
-			}
+				},
+				Flags: bindings.NodeFlagsConstant,
+			},
+			Source: bindings.Source{},
 		}
 	})
 
@@ -304,4 +345,39 @@ func (v *notNullMaps) Visit(node bindings.Node) walk.Visitor {
 	}
 
 	return v
+}
+
+func isGoEnum(n bindings.Node) (*bindings.Alias, *bindings.UnionType, bool) {
+	al, ok := n.(*bindings.Alias)
+	if !ok {
+		return nil, nil, false
+	}
+
+	union, ok := al.Type.(*bindings.UnionType)
+	if !ok {
+		return nil, nil, false
+	}
+
+	if len(union.Types) == 0 {
+		return nil, nil, false
+	}
+
+	var expectedType *bindings.LiteralType
+	// This might be a union type, if all elements are the same literal type.
+	for _, t := range union.Types {
+		value, ok := t.(*bindings.LiteralType)
+		if !ok {
+			return nil, nil, false
+		}
+		if expectedType == nil {
+			expectedType = value
+			continue
+		}
+
+		if reflect.TypeOf(expectedType.Value) != reflect.TypeOf(value.Value) {
+			return nil, nil, false
+		}
+	}
+
+	return al, union, true
 }
