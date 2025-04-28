@@ -106,6 +106,8 @@ func TestGeneration(t *testing.T) {
 				muts := strings.Split(strings.TrimSpace(string(mutsCSV)), ",")
 				for _, m := range muts {
 					switch m {
+					case "NotNullMaps":
+						mutations = append(mutations, config.NotNullMaps)
 					case "EnumAsTypes":
 						mutations = append(mutations, config.EnumAsTypes)
 					case "EnumLists":
