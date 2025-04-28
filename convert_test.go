@@ -116,6 +116,8 @@ func TestGeneration(t *testing.T) {
 						mutations = append(mutations, config.ReadOnly)
 					case "NullUnionSlices":
 						mutations = append(mutations, config.NullUnionSlices)
+					case "TrimEnumPrefix":
+						mutations = append(mutations, config.TrimEnumPrefix)
 					default:
 						t.Fatal("unknown mutation, add it to the list:", m)
 					}

@@ -82,37 +82,23 @@ func ReadOnly(ts *guts.Typescript) {
 	})
 }
 
-//func UseEnums(ts *guts.Typescript) {
-//	ts.ForEach(func(key string, node bindings.Node) {
-//		al, union, ok := isGoEnum(node)
-//		if !ok {
-//			return
-//		}
-//
-//		members := make([]*bindings.EnumMember, 0, len(union.Types))
-//		for _, t := range union.Types {
-//			literal, ok := t.(*bindings.LiteralType)
-//			if !ok {
-//				slog.Warn(fmt.Sprintf("enum %s has a non-literal type %T", key, t))
-//				continue
-//			}
-//
-//			members = append(members, &bindings.EnumMember{
-//				Name: literal.Value.(string),
-//			})
-//		}
-//
-//		// Switch to an enum type
-//		ts.ReplaceNode(key, &bindings.Enum{
-//			Name:      al.Name,
-//			Modifiers: al.Modifiers,
-//			Members:   members,
-//			Source:    al.Source,
-//		})
-//	})
-//}
+// TrimEnumPrefix removes the enum name from the member names.
+func TrimEnumPrefix(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		enum, ok := node.(*bindings.Enum)
+		if !ok {
+			return
+		}
 
-// EnumAsTypes
+		for _, member := range enum.Members {
+			member.Name = strings.TrimPrefix(member.Name, enum.Name.Name)
+		}
+	})
+}
+
+// EnumAsTypes uses types to handle enums rather than using 'enum'.
+// An enum will look like:
+//  type EnumString = "bar" | "baz" | "foo" | "qux";
 func EnumAsTypes(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		enum, ok := node.(*bindings.Enum)

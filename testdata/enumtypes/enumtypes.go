@@ -5,6 +5,8 @@ type (
 	EnumSliceType []EnumString
 
 	EnumInt int
+
+	Audience string
 )
 
 const (
@@ -17,4 +19,10 @@ const (
 const (
 	EnumNumFoo EnumInt = 5
 	EnumNumBar EnumInt = 10
+)
+
+const (
+	AudienceWorld  Audience = "world"
+	AudienceTenant Audience = "tenant"
+	AudienceTeam   Audience = "team"
 )

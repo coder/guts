@@ -62,20 +62,31 @@ Using [goja](https://github.com/dop251/goja), these types are then serialized to
 
 # Generator Opinions
 
-The generator aims to do the bare minimum type conversion. An example of a common opinion, is to create enum lists.
+The generator aims to do the bare minimum type conversion. An example of a common opinion, is to use types to represent enums. Without the mutation, the following is generated:
 
 ```typescript
-export type Enum = "bar" | "baz" | "foo" | "qux" // <-- Golang type
-export const Enums: Enum[] = ["bar", "baz", "foo", "qux"] // <-- Helpful additional generated type
+export enum EnumString {
+    EnumBar = "bar",
+    EnumBaz = "baz",
+    EnumFoo = "foo",
+    EnumQux = "qux"
+}
 ```
 
-These kinds of opinions can be added with:
+Add the mutation:
 ```golang
 ts.ApplyMutations(
-	config.EnumLists,
+	config.EnumAsTypes,
 )
 output, _ := ts.Serialize()
 ```
+
+And the output is:
+
+```typescript
+export type EnumString = "bar" | "baz" | "foo" | "qux";
+```
+
 
 # Helpful notes
 
