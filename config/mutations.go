@@ -147,7 +147,7 @@ func EnumAsTypes(ts *guts.Typescript) {
 // )
 // const MyEnums: string = ["foo", "bar"] <-- this is added
 // TODO: Enums were changed to use proper enum types. This should be
-//   updated to support that.
+//   updated to support that. EnumLists only works with EnumAsTypes used first.
 func EnumLists(ts *guts.Typescript) {
 	addNodes := make(map[string]bindings.Node)
 	ts.ForEach(func(key string, node bindings.Node) {
