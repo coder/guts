@@ -53,7 +53,7 @@ func Walk(v Visitor, node bindings.Node) {
 		Walk(v, n.Type)
 		Walk(v, n.Initializer)
 	case *bindings.ReferenceType:
-		// noop
+		walkList(v, n.Arguments)
 	case *bindings.LiteralKeyword:
 		// noop
 	case *bindings.LiteralType:
