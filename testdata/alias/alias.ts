@@ -13,4 +13,25 @@ export type AliasString = string;
 export type AliasStringSlice = readonly string[];
 
 // From alias/alias.go
+export interface AliasStruct {
+    readonly Key: string;
+}
+
+// From alias/alias.go
+export interface AliasStructNested {
+    readonly Key: string;
+}
+
+// From alias/alias.go
+export type AliasStructNestedSlice = readonly FooStruct[];
+
+// From alias/alias.go
+export type AliasStructSlice = readonly FooStruct[];
+
+// From alias/alias.go
 export type Foo = string;
+
+// From alias/alias.go
+export interface FooStruct {
+    readonly Key: string;
+}

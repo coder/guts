@@ -1004,8 +1004,9 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			},
 		}, nil
 	case *types.Alias:
-		// TODO: Verify this is correct.
-		return ts.typescriptType(ty.Underlying())
+		// See https://github.com/golang/go/issues/66559
+		// Rhs will traverse all aliasing types until it finds the base type.
+		return ts.typescriptType(ty.Rhs())
 	case *types.Union:
 		allTypes := make([]bindings.ExpressionType, 0, ty.Len())
 		for i := 0; i < ty.Len(); i++ {
