@@ -679,7 +679,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		// Use the json name if present
 		jsonTag, err := tags.Get("json")
 		if err == nil {
-			if jsonTag.Name == "-" {
+			if jsonTag.Name == "-" && len(jsonTag.Options) == 0 {
 				// Completely ignore this field.
 				continue
 			}
