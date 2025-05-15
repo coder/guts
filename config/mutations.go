@@ -12,12 +12,13 @@ import (
 	"github.com/coder/guts/bindings/walk"
 )
 
-// SimplifyOmitEmpty removes the null type from union types that have a question token.
-// This is because if 'omitempty' is set, then golang will omit the object key,
-// rather than sending a null value to the client.
+// SimplifyOptional removes the null type from union types that have a question
+// token. This is because if 'omitempty' or 'omitzero' is set, then golang will
+// omit the object key, rather than sending a null value to the client.
+//
 // Example:
 // number?: number | null --> number?: number
-func SimplifyOmitEmpty(ts *guts.Typescript) {
+func SimplifyOptional(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		switch node := node.(type) {
 		case *bindings.Interface:
@@ -35,6 +36,14 @@ func SimplifyOmitEmpty(ts *guts.Typescript) {
 			}
 		}
 	})
+}
+
+// SimplifyOmitEmpty is a deprecated alias for SimplifyOptional.
+// It was implemented for the `omitempty` case, however it's usage affects
+// 'omitzero' as well.
+// Deprecated: Use SimplifyOptional instead.
+func SimplifyOmitEmpty(ts *guts.Typescript) {
+	SimplifyOptional(ts)
 }
 
 // ExportTypes adds 'export' to all top level types.
