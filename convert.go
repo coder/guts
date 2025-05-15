@@ -687,7 +687,8 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 			if jsonTag.Name != "" {
 				tsField.Name = jsonTag.Name
 			}
-			if len(jsonTag.Options) > 0 && jsonTag.Options[0] == "omitempty" {
+			isOptional := jsonTag.HasOption("omitempty") || jsonTag.HasOption("omitzero")
+			if len(jsonTag.Options) > 0 && isOptional {
 				tsField.QuestionToken = true
 			}
 		}
