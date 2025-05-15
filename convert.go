@@ -679,16 +679,23 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		// Use the json name if present
 		jsonTag, err := tags.Get("json")
 		if err == nil {
-			if jsonTag.Name == "-" {
+			if jsonTag.Name == "-" && len(jsonTag.Options) == 1 {
 				// Completely ignore this field.
+				// The tag `"-,"` names the field as "-".
 				continue
 			}
 			// Empty tags are ignored.
 			if jsonTag.Name != "" {
 				tsField.Name = jsonTag.Name
 			}
-			if len(jsonTag.Options) > 0 && jsonTag.Options[0] == "omitempty" {
+			if len(jsonTag.Options) > 0 && (jsonTag.Options[0] == "omitempty" || jsonTag.Options[0] == "omitzero") {
 				tsField.QuestionToken = true
+			}
+
+			if strings.Contains(tsField.Name, "-") {
+				// Unsure how else to handle this. Name with a hyphen in them
+				// are not valid field names, so we need to wrap them in quotes.
+				tsField.Name = fmt.Sprintf("%q", tsField.Name)
 			}
 		}
 
