@@ -11,7 +11,7 @@
 // https://astexplorer.net/
 
 import * as ts from "typescript";
-import { Modifier, ModifierSyntaxKind } from "typescript";
+import {Identifier, Modifier, ModifierSyntaxKind, StringLiteral} from "typescript";
 
 type modifierKeys = FilterKeys<typeof ts.SyntaxKind, ModifierSyntaxKind>;
 export function modifier(name: modifierKeys | ts.Modifier): Modifier {
@@ -28,6 +28,7 @@ export function identifier(name: string | ts.Identifier): ts.Identifier {
   if (typeof name !== "string") {
     return name;
   }
+
   return ts.factory.createIdentifier(name);
 }
 
@@ -37,9 +38,20 @@ export function propertySignature(
   question: boolean,
   type: ts.TypeNode
 ): ts.PropertySignature {
+
+  var id: Identifier | StringLiteral = identifier(name);
+
+  // Property names can be quoted if they are not valid identifiers.
+  // This is things like hyphens, numbers first, etc.
+  // TODO: If this regex exists in the typescript compiler, use that instead.
+  if(!(/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name))) {
+    id = ts.factory.createStringLiteral(name);
+  }
+
+
   return ts.factory.createPropertySignature(
     modifiers?.map((m) => modifier(m)),
-    identifier(name),
+    id,
     question ? questionToken() : undefined,
     type
   );
