@@ -9,8 +9,10 @@ export interface EmptyFields {
 // From nullable/nullable.go
 export interface NullableFields {
     readonly omitEmpty?: string;
+    readonly omitZero?: string;
     readonly nullable: string | null;
     readonly nullableOmitEmpty?: string | null;
+    readonly nullableOmitZero?: string | null;
     readonly nullTime: string | null;
     readonly slicePointer: readonly (string)[];
 }
