@@ -32,7 +32,7 @@ interface SimpleType<T extends Comparable> {
 
 `guts` is a library, not a command line utility. This is to allow configuration with code, and also helps with package resolution.
 
-See the [simple example](./example/simple) for a basic usage of the library. A larger example can be found in the [Coder repository](https://github.com/coder/coder/blob/a632a841d4f5666c2c1690801f88cd1a1fcffc00/scripts/apitypings/main.go).
+See the [simple example](./example/simple) for a basic usage of the library. A larger example can be found in the [Coder repository](https://github.com/coder/coder/blob/main/scripts/apitypings/main.go).
 
 ```go
 // Step 1: Create a new Golang parser
@@ -86,6 +86,14 @@ And the output is:
 ```typescript
 export type EnumString = "bar" | "baz" | "foo" | "qux";
 ```
+
+# Alternative solutions
+
+The guts package was created to offer a more flexible, programmatic alternative to existing Go-to-TypeScript code generation tools out there.
+
+The other solutions out there function as command-line utilities with yaml configurability. `guts` is a library, giving it a much more flexible and dynamic configuration that static generators can’t easily support.
+
+Unlike many of its counterparts, guts leverages the official TypeScript compiler under the hood, ensuring that the generated TypeScript definitions are semantically correct, syntactically valid, and aligned with the latest language features.
 
 
 # Helpful notes
