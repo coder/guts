@@ -6,6 +6,11 @@ export type Audience = "team" | "tenant" | "world";
 export const Audiences: Audience[] = ["team", "tenant", "world"];
 
 // From enumtypes/enumtypes.go
+export type EnumAlias = "bool" | "list(string)" | "number" | "string";
+
+export const EnumAliases: EnumAlias[] = ["bool", "list(string)", "number", "string"];
+
+// From enumtypes/enumtypes.go
 export type EnumInt = 10 | 5;
 
 export const EnumInts: EnumInt[] = [10, 5];

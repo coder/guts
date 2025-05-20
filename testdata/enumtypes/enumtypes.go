@@ -26,3 +26,12 @@ const (
 	AudienceTenant Audience = "tenant"
 	AudienceTeam   Audience = "team"
 )
+
+type EnumAlias = string
+
+const (
+	EnumAliasString     EnumAlias = "string"
+	EnumAliasNumber     EnumAlias = "number"
+	EnumAliasBoolean    EnumAlias = "bool"
+	EnumAliasListString EnumAlias = "list(string)"
+)

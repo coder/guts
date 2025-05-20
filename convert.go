@@ -494,26 +494,41 @@ func (ts *Typescript) parse(obj types.Object) error {
 		// TODO: Are any enums var declarations? This is also codersdk.Me.
 		return nil // Maybe we should treat these like consts?
 	case *types.Const:
-		// Names are very likely enums
-		named, ok := obj.Type().(*types.Named)
-		if !ok {
-			// It could be a raw const value to generate.
-			if _, ok := obj.Type().(*types.Basic); ok {
-				cnst, err := ts.constantDeclaration(obj)
-				if err != nil {
-					return xerrors.Errorf("basic const %q: %w", objectIdentifier.Ref(), err)
+		type constMethods interface {
+			Obj() *types.TypeName
+			Underlying() types.Type
+		}
+
+		var use constMethods
+		{ // TODO: This block could be cleaned up
+			// Names & aliases are very likely enums
+			named, namedOk := obj.Type().(*types.Named)
+			aliased, aliasOk := obj.Type().(*types.Alias)
+
+			if !namedOk && !aliasOk {
+				// It could be a raw const value to generate.
+				if _, ok := obj.Type().(*types.Basic); ok {
+					cnst, err := ts.constantDeclaration(obj)
+					if err != nil {
+						return xerrors.Errorf("basic const %q: %w", objectIdentifier.Ref(), err)
+					}
+					return ts.setNode(objectIdentifier.Ref(), typescriptNode{
+						Node: cnst,
+					})
 				}
-				return ts.setNode(objectIdentifier.Ref(), typescriptNode{
-					Node: cnst,
-				})
+				return xerrors.Errorf("const %q is not a named type", objectIdentifier.Ref())
 			}
-			return xerrors.Errorf("const %q is not a named type", objectIdentifier.Ref())
+			if namedOk {
+				use = named
+			} else {
+				use = aliased
+			}
 		}
 
 		// Treat it as an enum.
-		enumObjName := ts.parsed.Identifier(named.Obj())
+		enumObjName := ts.parsed.Identifier(use.Obj())
 
-		switch named.Underlying().(type) {
+		switch use.Underlying().(type) {
 		case *types.Basic:
 		default:
 			return xerrors.Errorf("const %q is not a basic type, enums only support basic", objectIdentifier.Ref())
