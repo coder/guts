@@ -29,6 +29,11 @@ func (t typescriptNode) applyMutations() (typescriptNode, error) {
 
 func (t *typescriptNode) AddEnum(member *bindings.EnumMember) {
 	t.mutations = append(t.mutations, func(v bindings.Node) (bindings.Node, error) {
+		if v == nil {
+			// Just delete the enum if the reference type cannot be found.
+			return nil, nil
+		}
+
 		alias, ok := v.(*bindings.Alias)
 		if ok {
 			// Switch to an enum

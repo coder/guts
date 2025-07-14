@@ -180,7 +180,11 @@ func (p *GoParser) ToTypescript() (*Typescript, error) {
 		if err != nil {
 			return nil, fmt.Errorf("node %q: %w", key, err)
 		}
-		typescript.typescriptNodes[key] = &newNode
+		if newNode.Node == nil {
+			delete(typescript.typescriptNodes, key)
+		} else {
+			typescript.typescriptNodes[key] = &newNode
+		}
 	}
 
 	return typescript, nil
