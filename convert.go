@@ -180,6 +180,9 @@ func (p *GoParser) ToTypescript() (*Typescript, error) {
 		if err != nil {
 			return nil, fmt.Errorf("node %q: %w", key, err)
 		}
+
+		// If the Node is nil, then it serves no purpose and can be
+		// removed from the typescriptNodes map.
 		if newNode.Node == nil {
 			delete(typescript.typescriptNodes, key)
 		} else {
