@@ -28,6 +28,7 @@ type GoParser struct {
 	Pkgs      map[string]*packages.Package
 	Reference map[string]bool
 	Prefix    map[string]string
+	Skips     map[string]struct{}
 
 	// referencedTypes is a map of all types that are referenced by the generated
 	// packages. This is to generated referenced types on demand.
@@ -66,9 +67,10 @@ func NewGolangParser() (*GoParser, error) {
 		fileSet:         fileSet,
 		config:          config,
 		Pkgs:            make(map[string]*packages.Package),
-		Reference:       map[string]bool{},
+		Reference:       make(map[string]bool),
 		referencedTypes: newReferencedTypes(),
-		Prefix:          map[string]string{},
+		Prefix:          make(map[string]string),
+		Skips:           make(map[string]struct{}),
 		typeOverrides: map[string]TypeOverride{
 			// Some hard coded defaults
 			"error": func() bindings.ExpressionType {
@@ -112,6 +114,14 @@ func (p *GoParser) IncludeCustom(mappings map[GolangType]GolangType) error {
 			}
 			return exp
 		}
+	}
+	return nil
+}
+
+// ExcludeCustom flags golang types to not be generated in the Typescript output.
+func (p *GoParser) ExcludeCustom(fqnames ...string) error {
+	for _, fqname := range fqnames {
+		p.Skips[fqname] = struct{}{}
 	}
 	return nil
 }
@@ -166,6 +176,7 @@ func (p *GoParser) ToTypescript() (*Typescript, error) {
 	typescript := &Typescript{
 		typescriptNodes: make(map[string]*typescriptNode),
 		parsed:          p,
+		skip:            p.Skips,
 	}
 
 	// Parse all go types to the typescript AST
@@ -200,6 +211,7 @@ type Typescript struct {
 	// TODO: the key "string" should be replaced with "Identifier"
 	typescriptNodes map[string]*typescriptNode
 	parsed          *GoParser
+	skip            map[string]struct{}
 	// Do not allow calling serialize more than once.
 	// The call affects the state.
 	serialized bool
@@ -248,6 +260,11 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 			obj := pkg.Types.Scope().Lookup(ident)
 
 			if !obj.Exported() {
+				continue
+			}
+
+			// Skip by qualified name
+			if _, ok := ts.skip[obj.Type().String()]; ok {
 				continue
 			}
 

@@ -16,6 +16,10 @@ type SimpleType[T comparable] struct {
 	FieldTime       time.Time
 }
 
+type SecondaryType struct {
+	FieldString string
+}
+
 func main() {
 	golang, _ := guts.NewGolangParser()
 	// Generate the typescript types for this package
@@ -24,6 +28,8 @@ func main() {
 	_ = golang.IncludeCustom(map[string]string{
 		"time.Time": "string",
 	})
+	// Exclude SecondaryType from output
+	_ = golang.ExcludeCustom("github.com/coder/guts/example/simple.SecondaryType")
 
 	// Convert the golang types to typescript AST
 	ts, _ := golang.ToTypescript()
