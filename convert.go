@@ -247,6 +247,10 @@ func (ts *Typescript) parseGolangIdentifiers() error {
 
 			obj := pkg.Types.Scope().Lookup(ident)
 
+			if !obj.Exported() {
+				continue
+			}
+
 			if ts.parsed.Reference[pkg.PkgPath] {
 				if !ts.parsed.referencedTypes.IsReferenced(obj) {
 					continue
