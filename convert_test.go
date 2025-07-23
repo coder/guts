@@ -84,6 +84,9 @@ func TestGeneration(t *testing.T) {
 			case "testdata/anyreference":
 				err = gen.IncludeReference("github.com/coder/guts/testdata/prefix", "Prefix")
 				require.NoErrorf(t, err, "include %q", dir)
+			case "testdata/excludecustom":
+				err = gen.ExcludeCustom("github.com/coder/guts/testdata/excludecustom.Secret")
+				require.NoErrorf(t, err, "exclude %q", dir)
 			}
 
 			gen.IncludeCustomDeclaration(config.StandardMappings())
