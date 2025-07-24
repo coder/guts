@@ -17,6 +17,10 @@ export interface Foo extends Bar, GenBar<string> {
 }
 
 // From codersdk/inheritance.go
+export interface FooBarPtr extends Bar, GenBar<string> {
+}
+
+// From codersdk/inheritance.go
 export interface FooBuzz {
     readonly foo: Buzz;
     readonly bazz: string;
