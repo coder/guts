@@ -650,8 +650,21 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		// Adding a json struct tag causes the json package to consider
 		// the field unembedded.
 		if field.Embedded() && tag.Get("json") == "" {
+			// TODO: This prevents an inheritance clause from having a ` | null` in the
+			// expression. Typescript does not support `null` in the extends clause.
+			// This is not a perfect solution, and exists as a workaround.
+			// See https://github.com/coder/guts/issues/40
+			fieldType := field.Type()
+			for i := 0; i < 10; i++ { // Can there be an infinite loop here?
+				if ptrType, ok := fieldType.(*types.Pointer); ok {
+					fieldType = ptrType.Elem()
+					continue
+				}
+				break
+			}
+
 			// TODO: Generic args
-			heritage, err := ts.typescriptType(field.Type())
+			heritage, err := ts.typescriptType(fieldType)
 			if err != nil {
 				return tsi, xerrors.Errorf("heritage type: %w", err)
 			}
