@@ -341,7 +341,9 @@ func (ts *Typescript) updateNode(key string, update func(n *typescriptNode)) {
 	update(v)
 }
 
-func (ts *Typescript) ApplyMutations(muts ...func(typescript *Typescript)) {
+type MutationFunc func(typescript *Typescript)
+
+func (ts *Typescript) ApplyMutations(muts ...MutationFunc) {
 	for _, mut := range muts {
 		mut(ts)
 	}
