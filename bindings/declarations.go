@@ -73,22 +73,22 @@ func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
 			set[ref] = true
 
 			if union, ok := tp.Type.(*UnionType); ok {
-				simplifyUnion(union)
+				simplifyUnionLiterals(union)
 			}
 		}
 	}
 	return params, nil
 }
 
-func simplifyUnion(union *UnionType) *UnionType {
+func simplifyUnionLiterals(union *UnionType) *UnionType {
 	types := []ExpressionType{}
-	set := map[string]bool{}
+	literalSet := map[string]bool{}
 	for _, arg := range union.Types {
 		switch v := arg.(type) {
 		case *LiteralKeyword:
 			key := v.String()
-			if _, ok := set[key]; !ok {
-				set[key] = true
+			if _, ok := literalSet[key]; !ok {
+				literalSet[key] = true
 				types = append(types, arg)
 			}
 		default:
