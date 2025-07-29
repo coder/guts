@@ -94,7 +94,7 @@ func TestGeneration(t *testing.T) {
 			ts, err := gen.ToTypescript()
 			require.NoError(t, err, "to typescript")
 
-			mutations := []func(typescript *guts.Typescript){
+			mutations := []guts.MutationFunc{
 				config.EnumAsTypes,
 				config.EnumLists,
 				config.ExportTypes,
@@ -104,7 +104,7 @@ func TestGeneration(t *testing.T) {
 
 			mutsCSV, err := os.ReadFile(filepath.Join(dir, "mutations"))
 			if err == nil {
-				mutations = make([]func(typescript *guts.Typescript), 0)
+				mutations = make([]guts.MutationFunc, 0)
 				// load specific mutations
 				muts := strings.Split(strings.TrimSpace(string(mutsCSV)), ",")
 				for _, m := range muts {
