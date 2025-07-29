@@ -1,10 +1,5 @@
 package bindings
 
-import (
-	"fmt"
-	"reflect"
-)
-
 // DeclarationType is any type that can exist at the top level of a AST.
 // Meaning it can be serialized into valid Typescript.
 type DeclarationType interface {
@@ -69,21 +64,39 @@ func (p *TypeParameter) isNode() {}
 
 // Simplify removes duplicate type parameters
 func Simplify(p []*TypeParameter) ([]*TypeParameter, error) {
-	params := make([]*TypeParameter, 0, len(p))
-	exists := make(map[string]*TypeParameter)
+	params := []*TypeParameter{}
+	set := make(map[string]bool)
 	for _, tp := range p {
-		if found, ok := exists[tp.Name.Ref()]; ok {
-			// Compare types, make sure they are the same
-			equal := reflect.DeepEqual(found, tp)
-			if !equal {
-				return nil, fmt.Errorf("type parameter %q already exists with different type", tp.Name)
+		ref := tp.Name.Ref()
+		if _, ok := set[ref]; !ok {
+			params = append(params, tp)
+			set[ref] = true
+
+			if union, ok := tp.Type.(*UnionType); ok {
+				simplifyUnionLiterals(union)
 			}
-			continue
 		}
-		params = append(params, tp)
-		exists[tp.Name.Ref()] = tp
 	}
 	return params, nil
+}
+
+func simplifyUnionLiterals(union *UnionType) *UnionType {
+	types := []ExpressionType{}
+	literalSet := map[string]bool{}
+	for _, arg := range union.Types {
+		switch v := arg.(type) {
+		case *LiteralKeyword:
+			key := v.String()
+			if _, ok := literalSet[key]; !ok {
+				literalSet[key] = true
+				types = append(types, arg)
+			}
+		default:
+			types = append(types, arg)
+		}
+	}
+	union.Types = types
+	return union
 }
 
 // VariableStatement is a top level declaration of a variable
