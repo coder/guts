@@ -3,6 +3,7 @@ package guts
 import (
 	"context"
 	"fmt"
+	"go/ast"
 	"go/constant"
 	"go/token"
 	"go/types"
@@ -174,9 +175,10 @@ func (p *GoParser) include(directory string, prefix string, reference bool) erro
 // The returned typescript object can be mutated before serializing.
 func (p *GoParser) ToTypescript() (*Typescript, error) {
 	typescript := &Typescript{
-		typescriptNodes: make(map[string]*typescriptNode),
-		parsed:          p,
-		skip:            p.Skips,
+		typescriptNodes:   make(map[string]*typescriptNode),
+		parsed:            p,
+		skip:              p.Skips,
+		extractedComments: make(map[string][]string),
 	}
 
 	// Parse all go types to the typescript AST
@@ -212,6 +214,9 @@ type Typescript struct {
 	typescriptNodes map[string]*typescriptNode
 	parsed          *GoParser
 	skip            map[string]struct{}
+	// extractedComments stores comments extracted from Go source code
+	// Key format: "TypeName" for type comments, "TypeName.FieldName" for field comments
+	extractedComments map[string][]string
 	// Do not allow calling serialize more than once.
 	// The call affects the state.
 	serialized bool
@@ -339,6 +344,30 @@ func (ts *Typescript) updateNode(key string, update func(n *typescriptNode)) {
 		ts.typescriptNodes[key] = v
 	}
 	update(v)
+}
+
+// GetTypeComments returns the extracted comments for a given type
+func (ts *Typescript) GetTypeComments(typeName string) []string {
+	return ts.extractedComments[typeName]
+}
+
+// GetFieldComments returns the extracted comments for a given field
+func (ts *Typescript) GetFieldComments(typeName, fieldName string) []string {
+	return ts.extractedComments[typeName+"."+fieldName]
+}
+
+// setTypeComments stores the extracted comments for a type
+func (ts *Typescript) setTypeComments(typeName string, comments []string) {
+	if len(comments) > 0 {
+		ts.extractedComments[typeName] = comments
+	}
+}
+
+// setFieldComments stores the extracted comments for a field
+func (ts *Typescript) setFieldComments(typeName, fieldName string, comments []string) {
+	if len(comments) > 0 {
+		ts.extractedComments[typeName+"."+fieldName] = comments
+	}
 }
 
 type MutationFunc func(typescript *Typescript)
@@ -630,6 +659,91 @@ func (ts *Typescript) constantValue(obj *types.Const) (*bindings.LiteralType, er
 	return &constValue, nil
 }
 
+// extractTypeComments extracts documentation comments for a given type declaration
+func (ts *Typescript) extractTypeComments(obj types.Object) []string {
+	structType := ts.findStructType(obj)
+	if structType == nil {
+		return nil
+	}
+	return ts.extractCommentsFromGroup(structType.genDecl.Doc)
+}
+
+// extractFieldComments extracts documentation comments for struct fields
+func (ts *Typescript) extractFieldComments(obj types.Object, fieldName string) []string {
+	structType := ts.findStructType(obj)
+	if structType == nil {
+		return nil
+	}
+
+	for _, field := range structType.structAST.Fields.List {
+		for _, name := range field.Names {
+			if name.Name == fieldName {
+				var comments []string
+				// Extract doc comment (above the field) and line comment (at end of line)
+				comments = append(comments, ts.extractCommentsFromGroup(field.Doc)...)
+				comments = append(comments, ts.extractCommentsFromGroup(field.Comment)...)
+				return comments
+			}
+		}
+	}
+	return nil
+}
+
+// structTypeInfo holds the AST information for a struct type
+type structTypeInfo struct {
+	genDecl   *ast.GenDecl
+	structAST *ast.StructType
+}
+
+// findStructType finds the AST information for a given type object
+func (ts *Typescript) findStructType(obj types.Object) *structTypeInfo {
+	pkg, ok := ts.parsed.Pkgs[obj.Pkg().Path()]
+	if !ok {
+		return nil
+	}
+
+	for _, file := range pkg.Syntax {
+		for _, decl := range file.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+				for _, spec := range genDecl.Specs {
+					if typeSpec, ok := spec.(*ast.TypeSpec); ok && typeSpec.Name.Name == obj.Name() {
+						if structAST, ok := typeSpec.Type.(*ast.StructType); ok {
+							return &structTypeInfo{
+								genDecl:   genDecl,
+								structAST: structAST,
+							}
+						}
+						// Found the type but it's not a struct
+						return nil
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// extractCommentsFromGroup extracts and cleans comments from a comment group
+func (ts *Typescript) extractCommentsFromGroup(commentGroup *ast.CommentGroup) []string {
+	if commentGroup == nil {
+		return nil
+	}
+
+	var comments []string
+	for _, comment := range commentGroup.List {
+		text := comment.Text
+		// Remove comment prefixes and suffixes
+		text = strings.TrimPrefix(text, "//")
+		text = strings.TrimPrefix(text, "/*")
+		text = strings.TrimSuffix(text, "*/")
+		text = strings.TrimSpace(text)
+		if text != "" {
+			comments = append(comments, text)
+		}
+	}
+	return comments
+}
+
 // buildStruct just prints the typescript def for a type.
 // Generic type parameters are inferred from the type and inferred.
 func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings.Interface, error) {
@@ -641,6 +755,11 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		Heritage:   []*bindings.HeritageClause{}, // Extends
 		Source:     ts.location(obj),
 	}
+
+	// Extract and store type-level comments for later use by mutations
+	typeName := ts.parsed.Identifier(obj).Ref()
+	typeComments := ts.extractTypeComments(obj)
+	ts.setTypeComments(typeName, typeComments)
 
 	// Handle named embedded structs in the codersdk package via extension.
 	// This is inheritance.
@@ -758,6 +877,12 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		}
 		tsField.Type = tsType.Value
 		tsi.Parameters = append(tsi.Parameters, tsType.TypeParameters...)
+
+		// Extract and store field comments for later use by mutations
+		fieldComments := ts.extractFieldComments(obj, field.Name())
+		ts.setFieldComments(typeName, tsField.Name, fieldComments)
+
+		// Keep only raised comments from type analysis in the field initially
 		tsField.FieldComments = tsType.RaisedComments
 
 		// Some tag support

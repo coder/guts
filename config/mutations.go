@@ -342,6 +342,27 @@ func (v *notNullMaps) Visit(node bindings.Node) walk.Visitor {
 	return v
 }
 
+// PreserveComments applies the parsed comments from Go source code to TypeScript interfaces and fields.
+// This mutation transfers documentation comments from Go structs to their TypeScript equivalents.
+func PreserveComments(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		switch node := node.(type) {
+		case *bindings.Interface:
+			// Apply type-level comments if they were extracted
+			if typeComments := ts.GetTypeComments(key); len(typeComments) > 0 {
+				node.Comments = append(node.Comments, typeComments...)
+			}
+
+			// Apply field-level comments
+			for _, field := range node.Fields {
+				if fieldComments := ts.GetFieldComments(key, field.Name); len(fieldComments) > 0 {
+					field.FieldComments = append(fieldComments, field.FieldComments...)
+				}
+			}
+		}
+	})
+}
+
 func isGoEnum(n bindings.Node) (*bindings.Alias, *bindings.UnionType, bool) {
 	al, ok := n.(*bindings.Alias)
 	if !ok {
