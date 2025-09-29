@@ -99,6 +99,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.ArrayLiteral(ety)
 	case *OperatorNodeType:
 		siObj, err = b.OperatorNode(ety)
+	case *TypeLiteralNode:
+		siObj, err = b.TypeLiteralNode(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
 	}
@@ -702,4 +704,43 @@ func (b *Bindings) EnumDeclaration(e *Enum) (*goja.Object, error) {
 	}
 
 	return obj, nil
+}
+
+func (b *Bindings) TypeLiteralNode(node *TypeLiteralNode) (*goja.Object, error) {
+	typeLiteralF, err := b.f("typeLiteralNode")
+	if err != nil {
+		return nil, err
+	}
+
+	var members []interface{}
+	for _, member := range node.Members {
+		v, err := b.PropertySignature(member)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add field comments if they exist
+		if len(member.FieldComments) > 0 {
+			for _, text := range member.FieldComments {
+				v, err = b.Comment(Comment{
+					SingleLine:      true,
+					Text:            text,
+					TrailingNewLine: false,
+					Node:            v,
+				})
+				if err != nil {
+					return nil, fmt.Errorf("comment field %q: %w", member.Name, err)
+				}
+			}
+		}
+
+		members = append(members, v)
+	}
+
+	res, err := typeLiteralF(goja.Undefined(), b.vm.NewArray(members...))
+	if err != nil {
+		return nil, xerrors.Errorf("call typeLiteralNode: %w", err)
+	}
+
+	return res.ToObject(b.vm), nil
 }

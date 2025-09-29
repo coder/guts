@@ -279,6 +279,12 @@ export function typeOperatorNode(
   return ts.factory.createTypeOperatorNode(ts.SyntaxKind[operator], node);
 }
 
+export function typeLiteralNode(
+  members: ts.TypeElement[]
+): ts.TypeLiteralNode {
+  return ts.factory.createTypeLiteralNode(members);
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -305,6 +311,7 @@ module.exports = {
   variableDeclarationList: variableDeclarationList,
   arrayLiteral: arrayLiteral,
   typeOperatorNode: typeOperatorNode,
+  typeLiteralNode: typeLiteralNode,
   enumDeclaration: enumDeclaration,
   enumMember: enumMember,
 };
