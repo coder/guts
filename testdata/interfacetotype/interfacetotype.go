@@ -1,5 +1,10 @@
 package codersdk
 
+type Player struct {
+	User
+	Score int `json:"score"`
+}
+
 type User struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`

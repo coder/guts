@@ -14,6 +14,11 @@ export type GenericContainer<T extends any> = {
 };
 
 // From codersdk/interfacetotype.go
+export type Player = {
+    score: number;
+};
+
+// From codersdk/interfacetotype.go
 export type User = {
     id: number;
     name: string;

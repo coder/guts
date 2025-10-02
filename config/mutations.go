@@ -363,6 +363,7 @@ func InterfaceToType(ts *guts.Typescript) {
 			Type:       typeLiteral,
 			Parameters: intf.Parameters,
 			Source:     intf.Source,
+			// TODO: Heritage?
 		})
 	})
 }
