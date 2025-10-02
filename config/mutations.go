@@ -107,7 +107,7 @@ func TrimEnumPrefix(ts *guts.Typescript) {
 
 // EnumAsTypes uses types to handle enums rather than using 'enum'.
 // An enum will look like:
-//  type EnumString = "bar" | "baz" | "foo" | "qux";
+// type EnumString = "bar" | "baz" | "foo" | "qux";
 func EnumAsTypes(ts *guts.Typescript) {
 	ts.ForEach(func(key string, node bindings.Node) {
 		enum, ok := node.(*bindings.Enum)
@@ -142,7 +142,7 @@ func EnumAsTypes(ts *guts.Typescript) {
 // )
 // const MyEnums: string = ["foo", "bar"] <-- this is added
 // TODO: Enums were changed to use proper enum types. This should be
-//   updated to support that. EnumLists only works with EnumAsTypes used first.
+// updated to support that. EnumLists only works with EnumAsTypes used first.
 func EnumLists(ts *guts.Typescript) {
 	addNodes := make(map[string]bindings.Node)
 	ts.ForEach(func(key string, node bindings.Node) {
@@ -340,6 +340,47 @@ func (v *notNullMaps) Visit(node bindings.Node) walk.Visitor {
 	}
 
 	return v
+}
+
+// InterfaceToType converts all interfaces to type aliases.
+// interface User { name: string } --> type User = { name: string }
+func InterfaceToType(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		intf, ok := node.(*bindings.Interface)
+		if !ok {
+			return
+		}
+
+		// Create a type literal node to represent the interface structure
+		var typeLiteral bindings.ExpressionType = &bindings.TypeLiteralNode{
+			Members: intf.Fields,
+		}
+
+		// If the interface has heritage (extends/implements), create an intersection type.
+		// The output of an intersection type is equivalent to extending multiple interfaces.
+		if len(intf.Heritage) > 0 {
+			var intersection []bindings.ExpressionType
+			intersection = make([]bindings.ExpressionType, 0, len(intf.Heritage)+1)
+			for _, heritage := range intf.Heritage {
+				for _, arg := range heritage.Args {
+					intersection = append(intersection, arg)
+				}
+			}
+			intersection = append(intersection, typeLiteral)
+			typeLiteral = &bindings.TypeIntersection{
+				Types: intersection,
+			}
+		}
+
+		// Replace the interface with a type alias
+		ts.ReplaceNode(key, &bindings.Alias{
+			Name:       intf.Name,
+			Modifiers:  intf.Modifiers,
+			Type:       typeLiteral,
+			Parameters: intf.Parameters,
+			Source:     intf.Source,
+		})
+	})
 }
 
 func isGoEnum(n bindings.Node) (*bindings.Alias, *bindings.UnionType, bool) {

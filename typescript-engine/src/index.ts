@@ -11,7 +11,7 @@
 // https://astexplorer.net/
 
 import * as ts from "typescript";
-import {Identifier, Modifier, ModifierSyntaxKind, StringLiteral} from "typescript";
+import {Identifier, IntersectionTypeNode, Modifier, ModifierSyntaxKind, StringLiteral, TypeNode} from "typescript";
 
 type modifierKeys = FilterKeys<typeof ts.SyntaxKind, ModifierSyntaxKind>;
 export function modifier(name: modifierKeys | ts.Modifier): Modifier {
@@ -279,6 +279,16 @@ export function typeOperatorNode(
   return ts.factory.createTypeOperatorNode(ts.SyntaxKind[operator], node);
 }
 
+export function typeLiteralNode(
+  members: ts.TypeElement[]
+): ts.TypeLiteralNode {
+  return ts.factory.createTypeLiteralNode(members);
+}
+
+export function intersectionType(types:TypeNode[]): ts.IntersectionTypeNode {
+  return ts.factory.createIntersectionTypeNode(types);
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -305,6 +315,8 @@ module.exports = {
   variableDeclarationList: variableDeclarationList,
   arrayLiteral: arrayLiteral,
   typeOperatorNode: typeOperatorNode,
+  typeLiteralNode: typeLiteralNode,
+  intersectionType: intersectionType,
   enumDeclaration: enumDeclaration,
   enumMember: enumMember,
 };

@@ -181,3 +181,18 @@ type EnumMember struct {
 
 func (*EnumMember) isNode()           {}
 func (*EnumMember) isExpressionType() {}
+
+// TypeLiteralNode represents an object type literal like { name: string }
+type TypeLiteralNode struct {
+	Members []*PropertySignature
+}
+
+func (*TypeLiteralNode) isNode()           {}
+func (*TypeLiteralNode) isExpressionType() {}
+
+type TypeIntersection struct {
+	Types []ExpressionType
+}
+
+func (*TypeIntersection) isNode()           {}
+func (*TypeIntersection) isExpressionType() {}
