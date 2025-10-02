@@ -352,8 +352,24 @@ func InterfaceToType(ts *guts.Typescript) {
 		}
 
 		// Create a type literal node to represent the interface structure
-		typeLiteral := &bindings.TypeLiteralNode{
+		var typeLiteral bindings.ExpressionType = &bindings.TypeLiteralNode{
 			Members: intf.Fields,
+		}
+
+		// If the interface has heritage (extends/implements), create an intersection type.
+		// The output of an intersection type is equivalent to extending multiple interfaces.
+		if len(intf.Heritage) > 0 {
+			var intersection []bindings.ExpressionType
+			intersection = make([]bindings.ExpressionType, 0, len(intf.Heritage)+1)
+			for _, heritage := range intf.Heritage {
+				for _, arg := range heritage.Args {
+					intersection = append(intersection, arg)
+				}
+			}
+			intersection = append(intersection, typeLiteral)
+			typeLiteral = &bindings.TypeIntersection{
+				Types: intersection,
+			}
 		}
 
 		// Replace the interface with a type alias
@@ -363,7 +379,6 @@ func InterfaceToType(ts *guts.Typescript) {
 			Type:       typeLiteral,
 			Parameters: intf.Parameters,
 			Source:     intf.Source,
-			// TODO: Heritage?
 		})
 	})
 }

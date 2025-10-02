@@ -7,6 +7,8 @@ export type Address = {
     country: string;
 };
 
+export type Comparable = string | number | boolean;
+
 // From codersdk/interfacetotype.go
 export type GenericContainer<T extends any> = {
     value: T;
@@ -14,13 +16,20 @@ export type GenericContainer<T extends any> = {
 };
 
 // From codersdk/interfacetotype.go
-export type Player = {
-    score: number;
+export type Player<ID extends Comparable, P extends number> = User<ID> & Score<P> & {
+    x: number;
+    y: number;
 };
 
 // From codersdk/interfacetotype.go
-export type User = {
-    id: number;
+export type Score<T extends number> = {
+    points: T;
+    level: number;
+};
+
+// From codersdk/interfacetotype.go
+export type User<T extends Comparable> = {
+    id: T;
     name: string;
     email: string;
     is_active: boolean;

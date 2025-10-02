@@ -189,3 +189,10 @@ type TypeLiteralNode struct {
 
 func (*TypeLiteralNode) isNode()           {}
 func (*TypeLiteralNode) isExpressionType() {}
+
+type TypeIntersection struct {
+	Types []ExpressionType
+}
+
+func (*TypeIntersection) isNode()           {}
+func (*TypeIntersection) isExpressionType() {}

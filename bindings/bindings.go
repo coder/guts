@@ -101,6 +101,8 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.OperatorNode(ety)
 	case *TypeLiteralNode:
 		siObj, err = b.TypeLiteralNode(ety)
+	case *TypeIntersection:
+		siObj, err = b.TypeIntersection(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
 	}
@@ -742,5 +744,27 @@ func (b *Bindings) TypeLiteralNode(node *TypeLiteralNode) (*goja.Object, error) 
 		return nil, xerrors.Errorf("call typeLiteralNode: %w", err)
 	}
 
+	return res.ToObject(b.vm), nil
+}
+
+func (b *Bindings) TypeIntersection(node *TypeIntersection) (*goja.Object, error) {
+	intersectionF, err := b.f("intersectionType")
+	if err != nil {
+		return nil, err
+	}
+
+	var types []interface{}
+	for _, t := range node.Types {
+		v, err := b.ToTypescriptExpressionNode(t)
+		if err != nil {
+			return nil, fmt.Errorf("intersection type: %w", err)
+		}
+		types = append(types, v)
+	}
+
+	res, err := intersectionF(goja.Undefined(), b.vm.NewArray(types...))
+	if err != nil {
+		return nil, xerrors.Errorf("call intersectionType: %w", err)
+	}
 	return res.ToObject(b.vm), nil
 }
