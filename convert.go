@@ -756,7 +756,11 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 		}
 		tsField.Type = tsType.Value
 		tsi.Parameters = append(tsi.Parameters, tsType.TypeParameters...)
-		tsField.FieldComments = tsType.RaisedComments
+		// TODO: Better handle comments. The raised comments should probably be set to
+		//   empty after consumed?
+		for _, c := range tsType.RaisedComments {
+			tsField.LeadingComment(c)
+		}
 
 		// Some tag support
 		// TODO: Add more tag support?

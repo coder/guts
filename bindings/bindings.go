@@ -26,6 +26,10 @@ func (b *Bindings) ToTypescriptNode(ety Node) (*goja.Object, error) {
 	var err error
 
 	switch node := ety.(type) {
+	case *TypeParameter:
+		siObj, err = b.TypeParameter(node)
+	case *PropertySignature:
+		siObj, err = b.PropertySignature(node)
 	case DeclarationType:
 		// Defer to the ExpressionType implementation
 		siObj, err = b.ToTypescriptDeclarationNode(node)
@@ -36,7 +40,30 @@ func (b *Bindings) ToTypescriptNode(ety Node) (*goja.Object, error) {
 		return nil, fmt.Errorf("unsupported node type for typescript serialization: %T", node)
 	}
 
-	return siObj, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Append any source comments
+	if hasSource, ok := ety.(HasSource); ok {
+		cmt, set := hasSource.SourceComment()
+		if set {
+			siObj, err = b.CommentGojaObject([]SyntheticComment{cmt}, siObj)
+			if err != nil {
+				return nil, xerrors.Errorf("source comment declaration: %w", err)
+			}
+		}
+	}
+
+	// Append any other comments
+	if commented, ok := ety.(Commentable); ok {
+		siObj, err = b.CommentGojaObject(commented.Comments(), siObj)
+		if err != nil {
+			return nil, xerrors.Errorf("comment declaration: %w", err)
+		}
+	}
+
+	return siObj, nil
 }
 
 func (b *Bindings) ToTypescriptDeclarationNode(ety DeclarationType) (*goja.Object, error) {
@@ -56,7 +83,11 @@ func (b *Bindings) ToTypescriptDeclarationNode(ety DeclarationType) (*goja.Objec
 		return nil, xerrors.Errorf("unsupported type for declaration type: %T", ety)
 	}
 
-	return siObj, err
+	if err != nil {
+		return nil, err
+	}
+
+	return siObj, nil
 }
 
 func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object, error) {
@@ -101,6 +132,10 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.OperatorNode(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	return siObj, err
@@ -191,23 +226,9 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 
 	var fields []interface{}
 	for _, field := range ti.Fields {
-		v, err := b.PropertySignature(field)
+		v, err := b.ToTypescriptNode(field)
 		if err != nil {
 			return nil, err
-		}
-
-		if len(field.FieldComments) > 0 {
-			for _, text := range field.FieldComments {
-				v, err = b.Comment(Comment{
-					SingleLine:      true,
-					Text:            text,
-					TrailingNewLine: false,
-					Node:            v,
-				})
-				if err != nil {
-					return nil, fmt.Errorf("comment field %q: %w", field.Name, err)
-				}
-			}
 		}
 
 		fields = append(fields, v)
@@ -215,7 +236,7 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 
 	var typeParams []interface{}
 	for _, tp := range ti.Parameters {
-		v, err := b.TypeParameter(tp)
+		v, err := b.ToTypescriptNode(tp)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +245,7 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 
 	var heritage []interface{}
 	for _, h := range ti.Heritage {
-		v, err := b.HeritageClause(h)
+		v, err := b.ToTypescriptNode(h)
 		if err != nil {
 			return nil, err
 		}
@@ -243,24 +264,6 @@ func (b *Bindings) Interface(ti *Interface) (*goja.Object, error) {
 	}
 
 	obj := res.ToObject(b.vm)
-	if ti.Source.File != "" {
-		obj, err = b.Comment(ti.Source.Comment(obj))
-		if err != nil {
-			return nil, xerrors.Errorf("source comment interface: %w", err)
-		}
-	}
-
-	for _, c := range ti.Comments {
-		obj, err = b.Comment(Comment{
-			SingleLine:      true,
-			Text:            c,
-			TrailingNewLine: true,
-			Node:            obj,
-		})
-		if err != nil {
-			return nil, xerrors.Errorf("comment interface: %w", err)
-		}
-	}
 
 	return obj, nil
 }
@@ -273,7 +276,7 @@ func (b *Bindings) HeritageClause(clause *HeritageClause) (*goja.Object, error) 
 
 	var args []interface{}
 	for _, arg := range clause.Args {
-		v, err := b.ToTypescriptExpressionNode(arg)
+		v, err := b.ToTypescriptNode(arg)
 		if err != nil {
 			return nil, fmt.Errorf("heritage clause argument: %w", err)
 		}
@@ -310,7 +313,7 @@ func (b *Bindings) Array(arrType ExpressionType) (*goja.Object, error) {
 		return nil, err
 	}
 
-	siObj, err := b.ToTypescriptExpressionNode(arrType)
+	siObj, err := b.ToTypescriptNode(arrType)
 	if err != nil {
 		return nil, fmt.Errorf("array type: %w", err)
 	}
@@ -328,7 +331,7 @@ func (b *Bindings) Tuple(length int, tupleType ExpressionType) (*goja.Object, er
 		return nil, err
 	}
 
-	siObj, err := b.ToTypescriptExpressionNode(tupleType)
+	siObj, err := b.ToTypescriptNode(tupleType)
 	if err != nil {
 		return nil, fmt.Errorf("array type: %w", err)
 	}
@@ -346,14 +349,14 @@ func (b *Bindings) Alias(alias *Alias) (*goja.Object, error) {
 		return nil, err
 	}
 
-	siObj, err := b.ToTypescriptExpressionNode(alias.Type)
+	siObj, err := b.ToTypescriptNode(alias.Type)
 	if err != nil {
 		return nil, fmt.Errorf("alias type: %w", err)
 	}
 
 	var typeParams []interface{}
 	for _, tp := range alias.Parameters {
-		v, err := b.TypeParameter(tp)
+		v, err := b.ToTypescriptNode(tp)
 		if err != nil {
 			return nil, err
 		}
@@ -371,9 +374,6 @@ func (b *Bindings) Alias(alias *Alias) (*goja.Object, error) {
 	}
 
 	obj := res.ToObject(b.vm)
-	if alias.Source.File != "" {
-		return b.Comment(alias.Source.Comment(obj))
-	}
 
 	return obj, nil
 }
@@ -386,7 +386,7 @@ func (b *Bindings) TypeParameter(ty *TypeParameter) (*goja.Object, error) {
 
 	paramType := goja.Undefined()
 	if ty.Type != nil {
-		paramType, err = b.ToTypescriptExpressionNode(ty.Type)
+		paramType, err = b.ToTypescriptNode(ty.Type)
 		if err != nil {
 			return nil, fmt.Errorf("type parameter type: %w", err)
 		}
@@ -394,7 +394,7 @@ func (b *Bindings) TypeParameter(ty *TypeParameter) (*goja.Object, error) {
 
 	defaultType := goja.Undefined()
 	if ty.DefaultType != nil {
-		defaultType, err = b.ToTypescriptExpressionNode(ty.DefaultType)
+		defaultType, err = b.ToTypescriptNode(ty.DefaultType)
 		if err != nil {
 			return nil, fmt.Errorf("type parameter default type: %w", err)
 		}
@@ -421,7 +421,7 @@ func (b *Bindings) Union(ty *UnionType) (*goja.Object, error) {
 
 	var types []any
 	for _, t := range ty.Types {
-		v, err := b.ToTypescriptExpressionNode(t)
+		v, err := b.ToTypescriptNode(t)
 		if err != nil {
 			return nil, fmt.Errorf("union type: %w", err)
 		}
@@ -447,25 +447,6 @@ func (b *Bindings) Null() (*goja.Object, error) {
 		return nil, xerrors.Errorf("call nullType: %w", err)
 	}
 
-	return res.ToObject(b.vm), nil
-}
-
-func (b *Bindings) Comment(comment Comment) (*goja.Object, error) {
-	commentF, err := b.f("addSyntheticComment")
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := commentF(goja.Undefined(),
-		comment.Node,
-		b.vm.ToValue(true),
-		b.vm.ToValue(true),
-		b.vm.ToValue(" "+comment.Text),
-		b.vm.ToValue(true),
-	)
-	if err != nil {
-		return nil, xerrors.Errorf("call addSyntheticComment: %w", err)
-	}
 	return res.ToObject(b.vm), nil
 }
 
@@ -563,9 +544,6 @@ func (b *Bindings) VariableStatement(stmt *VariableStatement) (*goja.Object, err
 	}
 
 	obj := res.ToObject(b.vm)
-	if stmt.Source.File != "" {
-		return b.Comment(stmt.Source.Comment(obj))
-	}
 
 	return obj, nil
 }
@@ -697,9 +675,34 @@ func (b *Bindings) EnumDeclaration(e *Enum) (*goja.Object, error) {
 	}
 
 	obj := res.ToObject(b.vm)
-	if e.Source.File != "" {
-		return b.Comment(e.Source.Comment(obj))
-	}
 
 	return obj, nil
+}
+
+func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.Object) (*goja.Object, error) {
+	if len(comments) == 0 {
+		return object, nil
+	}
+
+	commentF, err := b.f("addSyntheticComment")
+	if err != nil {
+		return nil, err
+	}
+
+	node := object
+	for _, c := range comments {
+		res, err := commentF(goja.Undefined(),
+			node,
+			b.vm.ToValue(c.Leading),
+			b.vm.ToValue(c.SingleLine),
+			b.vm.ToValue(" "+c.Text),
+			b.vm.ToValue(c.TrailingNewLine),
+		)
+		if err != nil {
+			return nil, xerrors.Errorf("call addSyntheticComment: %w", err)
+		}
+		node = res.ToObject(b.vm)
+	}
+
+	return node, nil
 }
