@@ -506,7 +506,17 @@ func (ts *Typescript) parse(obj types.Object) error {
 
 			if underNamed.NumEmbeddeds() == 0 {
 				// type <Name> interface{}
-				// TODO: We could convert the function signatures to typescript.
+				// TODO: This has not been fully investigated. This line should only be triggered
+				//  on simple `any` types. If this generates something more complex, this will be wrong.
+				ts.updateNode(objectIdentifier.Ref(), func(n *typescriptNode) {
+					n.Node = &bindings.Alias{
+						Name:       objectIdentifier,
+						Modifiers:  []bindings.Modifier{},
+						Type:       ptr(bindings.KeywordAny),
+						Parameters: []*bindings.TypeParameter{},
+						Source:     ts.location(obj),
+					}
+				})
 				return nil
 			}
 
