@@ -125,6 +125,8 @@ func TestGeneration(t *testing.T) {
 						mutations = append(mutations, config.TrimEnumPrefix)
 					case "InterfaceToType":
 						mutations = append(mutations, config.InterfaceToType)
+					case "BiomeLintIgnoreAnyTypeParameters":
+						mutations = append(mutations, config.BiomeLintIgnoreAnyTypeParameters)
 					default:
 						t.Fatal("unknown mutation, add it to the list:", m)
 					}
