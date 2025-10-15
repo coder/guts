@@ -26,6 +26,8 @@ func (b *Bindings) ToTypescriptNode(ety Node) (*goja.Object, error) {
 	var err error
 
 	switch node := ety.(type) {
+	case *HeritageClause:
+		siObj, err = b.HeritageClause(node)
 	case *TypeParameter:
 		siObj, err = b.TypeParameter(node)
 	case *PropertySignature:
