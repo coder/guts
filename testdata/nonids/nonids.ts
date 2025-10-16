@@ -2,7 +2,9 @@
 
 // From nonids/nonids.go
 export interface Foo {
-    // Hyphen is an odd case, but this field is not ignored
+    /**
+     * Hyphen is an odd case, but this field is not ignored
+     */
     readonly "-": string;
     readonly "hyphenated-string": string;
     readonly "1numbered": number;

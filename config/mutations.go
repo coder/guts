@@ -417,3 +417,24 @@ func isGoEnum(n bindings.Node) (*bindings.Alias, *bindings.UnionType, bool) {
 
 	return al, union, true
 }
+
+// NoJSDocTransform prevents `guts` from reformatting Golang comments to JSDoc.
+// JSDoc comments use `/** */` style multi-line comments.
+func NoJSDocTransform(ts *guts.Typescript) {
+	ts.ForEach(func(key string, node bindings.Node) {
+		walk.Walk(&noJSDocTransformWalker{}, node)
+	})
+}
+
+type noJSDocTransformWalker struct{}
+
+func (v *noJSDocTransformWalker) Visit(node bindings.Node) walk.Visitor {
+	if commentedNode, ok := node.(bindings.Commentable); ok {
+		comments := commentedNode.Comments()
+		for i := range comments {
+			comments[i].DoNotFormat = true
+		}
+	}
+
+	return v
+}

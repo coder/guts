@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dop251/goja"
 	"golang.org/x/xerrors"
@@ -733,8 +734,47 @@ func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.O
 		return nil, err
 	}
 
-	node := object
+	// Group all comments that should be included into a JSDoc block.
+	jsDoc := make([]SyntheticComment, 0)
+	rest := make([]SyntheticComment, 0)
+
 	for _, c := range comments {
+		if !c.DoNotFormat && c.Leading && c.SingleLine {
+			jsDoc = append(jsDoc, c)
+			continue
+		}
+		rest = append(rest, c)
+	}
+
+	// JSDoc comments should be blocked together
+	node := object
+	if len(jsDoc) > 0 {
+		var jsDocComment strings.Builder
+		// JSDoc requires '/**' start and ' */' end. The default synthetic comment only places 1 '*'.
+		// So include the second '*', and start the comment line.
+		jsDocComment.WriteString("*\n *")
+		sep := ""
+		for _, cmt := range jsDoc {
+			jsDocComment.WriteString(sep)
+			jsDocComment.WriteString(cmt.Text)
+			sep = "\n *"
+		}
+		jsDocComment.WriteString("\n ")
+
+		res, err := commentF(goja.Undefined(),
+			node,
+			b.vm.ToValue(true),
+			b.vm.ToValue(false),
+			b.vm.ToValue(jsDocComment.String()),
+			b.vm.ToValue(true),
+		)
+		if err != nil {
+			return nil, xerrors.Errorf("call addSyntheticComment for JSDoc: %w", err)
+		}
+		node = res.ToObject(b.vm)
+	}
+
+	for _, c := range rest {
 		res, err := commentF(goja.Undefined(),
 			node,
 			b.vm.ToValue(c.Leading),

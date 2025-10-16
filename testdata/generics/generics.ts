@@ -25,7 +25,9 @@ export interface Complex<C extends Comparable, S extends Single, T extends Custo
 export type Custom = string | boolean | number | number | string[] | (number | null);
 
 // From codersdk/generics.go
-// Dynamic has some dynamic fields.
+/**
+ * Dynamic has some dynamic fields.
+ */
 export interface Dynamic<A extends any, S extends Single> {
     readonly dynamic: Fields<boolean, A, string, S>;
     readonly comparable: boolean | null;
@@ -49,7 +51,9 @@ export interface FieldsDiffOrder<A extends any, C extends Comparable, S extends 
 export type Single = string;
 
 // From codersdk/generics.go
-// Static has all generic fields defined in the field
+/**
+ * Static has all generic fields defined in the field
+ */
 export interface Static {
     readonly static: Fields<string, number, number, string>;
 }

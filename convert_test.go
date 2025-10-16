@@ -130,6 +130,8 @@ func TestGeneration(t *testing.T) {
 						mutations = append(mutations, config.InterfaceToType)
 					case "BiomeLintIgnoreAnyTypeParameters":
 						mutations = append(mutations, config.BiomeLintIgnoreAnyTypeParameters)
+					case "NoJSDocTransform":
+						mutations = append(mutations, config.NoJSDocTransform)
 					default:
 						t.Fatal("unknown mutation, add it to the list:", m)
 					}

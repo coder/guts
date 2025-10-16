@@ -19,13 +19,16 @@ type SyntheticComment struct {
 	SingleLine      bool
 	Text            string
 	TrailingNewLine bool
+
+	// DoNotFormat indicates this comment should not be attempted to be reformatted.
+	// Guts will attempt to format comments into JSDoc style comments where possible.
+	DoNotFormat bool
 }
 
 type SupportComments struct {
 	comments []SyntheticComment
 }
 
-// LeadingComment is a helper function for the most common type of comment.
 func (s *SupportComments) LeadingComment(text string) {
 	s.AppendComment(SyntheticComment{
 		Leading:    true,
@@ -33,6 +36,7 @@ func (s *SupportComments) LeadingComment(text string) {
 		// All go comments are `// ` prefixed, so add a space.
 		Text:            " " + text,
 		TrailingNewLine: false,
+		DoNotFormat:     true,
 	})
 }
 
@@ -66,5 +70,6 @@ func (s Source) SourceComment() (SyntheticComment, bool) {
 		SingleLine:      true,
 		Text:            fmt.Sprintf(" From %s", s.File),
 		TrailingNewLine: false,
+		DoNotFormat:     true,
 	}, s.File != ""
 }
