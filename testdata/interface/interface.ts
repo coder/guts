@@ -16,6 +16,3 @@ export interface Foo extends Bar, GenBar<string> {
 export interface GenBar<T extends Comparable> {
     readonly GenBarField: T;
 }
-
-// From codersdk/interface.go
-export type IgnoreMe = any;

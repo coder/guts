@@ -504,8 +504,15 @@ func (ts *Typescript) parse(obj types.Object) error {
 				})
 			}
 
+			if underNamed.NumEmbeddeds() == 0 && underNamed.NumMethods() > 0 {
+				// type <Name> interface{ <methods> }
+				// Do not generate anything for interfaces.
+				return nil
+			}
+
 			if underNamed.NumEmbeddeds() == 0 {
 				// type <Name> interface{}
+				// A typed `any` is still a type. A strange one to use, but still valid.
 				// TODO: This has not been fully investigated. This line should only be triggered
 				//  on simple `any` types. If this generates something more complex, this will be wrong.
 				ts.updateNode(objectIdentifier.Ref(), func(n *typescriptNode) {
