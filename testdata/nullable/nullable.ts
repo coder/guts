@@ -2,9 +2,7 @@
 
 // From nullable/nullable.go
 export interface EmptyFields {
-    /**
-     * empty interface{} type, falling back to unknown
-     */
+    // empty interface{} type, falling back to unknown
     readonly empty: unknown;
 }
 

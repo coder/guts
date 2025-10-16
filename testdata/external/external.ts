@@ -2,8 +2,6 @@
 
 // From external/external.go
 export interface ExternalField {
-    /**
-     * external type "github.com/fatih/structtag.Tag", to include this type the package must be explicitly included in the parsing
-     */
+    // external type "github.com/fatih/structtag.Tag", to include this type the package must be explicitly included in the parsing
     readonly GojaField: unknown;
 }
