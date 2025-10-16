@@ -35,7 +35,7 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 			continue
 		}
 
-		var found []*ast.CommentGroup
+		var found []bindings.SyntheticComment
 		ast.Inspect(f, func(n ast.Node) bool {
 			// The decl nodes "cover" the types they comment on. So we can check quickly if
 			// the node is relevant.
@@ -47,7 +47,7 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 			case *ast.FuncDecl:
 				// Match function/method name token exactly.
 				if nd.Name != nil && nd.Name.Pos() == pos {
-					found = nd.Doc
+					found = syntheticComments(true, nd.Doc)
 					return false
 				}
 
@@ -63,9 +63,9 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 						for _, name := range spec.Names {
 							if name.Pos() == pos {
 								if spec.Doc != nil {
-									found = spec.Doc
+									found = syntheticComments(true, nd.Doc)
 								} else {
-									found = nd.Doc
+									found = syntheticComments(true, spec.Doc)
 								}
 								return false
 							}
@@ -76,9 +76,9 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 						if spec.Name != nil && spec.Name.Pos() == pos {
 							// comment on the type itself
 							if spec.Doc != nil {
-								found = spec.Doc
+								found = syntheticComments(true, spec.Doc)
 							} else {
-								found = nd.Doc
+								found = syntheticComments(true, nd.Doc)
 							}
 							return false
 						}
@@ -107,10 +107,7 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 			return true
 		})
 
-		if len(found) > 0 {
-			return found[0]
-		}
-		return nil
+		return found
 	}
 
 	return nil
@@ -130,7 +127,7 @@ func commentForFieldList(fl *ast.FieldList, pos token.Pos) []bindings.SyntheticC
 			for _, nm := range fld.Names {
 				if nm.Pos() == pos {
 					cmts = append(cmts, syntheticComments(true, fld.Doc)...)
-					cmts = append(cmts, syntheticComments(true, fld.Doc)...)
+					cmts = append(cmts, syntheticComments(false, fld.Comment)...)
 					return cmts
 				}
 			}
@@ -138,7 +135,7 @@ func commentForFieldList(fl *ast.FieldList, pos token.Pos) []bindings.SyntheticC
 			// Embedded field (anonymous): no Names; match on the Type span.
 			if covers(fld.Type, pos) {
 				cmts = append(cmts, syntheticComments(true, fld.Doc)...)
-				cmts = append(cmts, syntheticComments(true, fld.Doc)...)
+				cmts = append(cmts, syntheticComments(false, fld.Comment)...)
 				return cmts
 			}
 		}
@@ -152,6 +149,9 @@ func covers(n ast.Node, p token.Pos) bool {
 
 func syntheticComments(leading bool, grp *ast.CommentGroup) []bindings.SyntheticComment {
 	cmts := []bindings.SyntheticComment{}
+	if grp == nil {
+		return cmts
+	}
 	for _, c := range grp.List {
 		cmts = append(cmts, bindings.SyntheticComment{
 			Leading:         leading,

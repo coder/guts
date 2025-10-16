@@ -449,7 +449,7 @@ func (ts *Typescript) parse(obj types.Object) error {
 
 			if ts.preserveComments {
 				cmts := ts.parsed.CommentForObject(obj)
-				node.ASTCommentGroup(cmts)
+				node.AppendComments(cmts)
 			}
 			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 				Node: node,
@@ -807,7 +807,7 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 
 		if ts.preserveComments {
 			cmts := ts.parsed.CommentForObject(field)
-			tsField.ASTCommentGroup(cmts)
+			tsField.AppendComments(cmts)
 		}
 		tsi.Fields = append(tsi.Fields, tsField)
 	}

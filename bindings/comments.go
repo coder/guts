@@ -2,15 +2,13 @@ package bindings
 
 import (
 	"fmt"
-	"go/ast"
 	"go/token"
-	"strings"
 )
 
 // Commentable indicates if the AST node supports adding comments.
 // Any number of comments are supported and can be attached to a typescript AST node.
 type Commentable interface {
-	Comment(comment SyntheticComment)
+	AppendComment(comment SyntheticComment)
 	Comments() []SyntheticComment
 }
 
@@ -27,33 +25,9 @@ type SupportComments struct {
 	comments []SyntheticComment
 }
 
-func (s *SupportComments) ASTCommentGroup(grp *ast.CommentGroup) {
-	if grp == nil {
-		return
-	}
-	for _, cmt := range grp.List {
-		s.ASTComment(cmt)
-	}
-}
-
-func (s *SupportComments) ASTComment(cmt *ast.Comment) {
-	// TODO: Is there a better way to get just the text of the comment?
-	text := cmt.Text
-	text = strings.TrimPrefix(text, "//")
-	text = strings.TrimPrefix(text, "/*")
-	text = strings.TrimSuffix(text, "*/")
-
-	s.Comment(SyntheticComment{
-		Leading:         true,
-		SingleLine:      !strings.Contains(cmt.Text, "\n"),
-		Text:            text,
-		TrailingNewLine: true,
-	})
-}
-
 // LeadingComment is a helper function for the most common type of comment.
 func (s *SupportComments) LeadingComment(text string) {
-	s.Comment(SyntheticComment{
+	s.AppendComment(SyntheticComment{
 		Leading:    true,
 		SingleLine: true,
 		// All go comments are `// ` prefixed, so add a space.
@@ -62,7 +36,11 @@ func (s *SupportComments) LeadingComment(text string) {
 	})
 }
 
-func (s *SupportComments) Comment(comment SyntheticComment) {
+func (s *SupportComments) AppendComments(comments []SyntheticComment) {
+	s.comments = append(s.comments, comments...)
+}
+
+func (s *SupportComments) AppendComment(comment SyntheticComment) {
 	s.comments = append(s.comments, comment)
 }
 

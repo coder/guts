@@ -13,13 +13,12 @@ export interface BlockComment {
 // It actually has 2 comments?!
 // TODO: Maybe add a third comment!
 export interface CommentedStructure {
-    // Field comment
-    readonly Inline: string;
+    readonly Inline: string; // Field comment
     // Leading comment
     readonly Leading: string;
     readonly Trailing: string;
     // Leading comment
-    readonly All: string;
+    readonly All: string; // Inline comment
     //  Another leading comment 
     readonly Block: string;
 }

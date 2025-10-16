@@ -21,8 +21,10 @@ export interface FooBarPtr extends Bar, GenBar<string> {
 }
 
 // From codersdk/inheritance.go
+// FooBuzz has a json tag for the embedded
+// See: https://go.dev/play/p/-p6QYmY8mtR
 export interface FooBuzz {
-    readonly foo: Buzz;
+    readonly foo: Buzz; // Json tag changes the inheritance
     readonly bazz: string;
 }
 
