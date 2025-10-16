@@ -3,7 +3,9 @@ package enums
 import "time"
 
 type (
-	EnumString    string
+	// EnumString is a string-based enum
+	EnumString string
+	// EnumSliceType is a slice of string-based enums
 	EnumSliceType []EnumString
 
 	EnumInt int
@@ -12,6 +14,7 @@ type (
 )
 
 const (
+	// EnumFoo is the "foo" value
 	EnumFoo EnumString = "foo"
 	EnumBar EnumString = "bar"
 	EnumBaz EnumString = "baz"

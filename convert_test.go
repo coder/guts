@@ -76,6 +76,9 @@ func TestGeneration(t *testing.T) {
 			gen, err := guts.NewGolangParser()
 			require.NoError(t, err, "new convert")
 
+			// PreserveComments will attach golang comments to the typescript nodes.
+			gen.PreserveComments()
+
 			dir := filepath.Join(".", "testdata", f.Name())
 			err = gen.IncludeGenerate("./" + dir)
 			require.NoErrorf(t, err, "include %q", dir)

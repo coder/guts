@@ -8,7 +8,7 @@ import (
 // Commentable indicates if the AST node supports adding comments.
 // Any number of comments are supported and can be attached to a typescript AST node.
 type Commentable interface {
-	Comment(comment SyntheticComment)
+	AppendComment(comment SyntheticComment)
 	Comments() []SyntheticComment
 }
 
@@ -27,15 +27,20 @@ type SupportComments struct {
 
 // LeadingComment is a helper function for the most common type of comment.
 func (s *SupportComments) LeadingComment(text string) {
-	s.Comment(SyntheticComment{
-		Leading:         true,
-		SingleLine:      true,
-		Text:            text,
+	s.AppendComment(SyntheticComment{
+		Leading:    true,
+		SingleLine: true,
+		// All go comments are `// ` prefixed, so add a space.
+		Text:            " " + text,
 		TrailingNewLine: false,
 	})
 }
 
-func (s *SupportComments) Comment(comment SyntheticComment) {
+func (s *SupportComments) AppendComments(comments []SyntheticComment) {
+	s.comments = append(s.comments, comments...)
+}
+
+func (s *SupportComments) AppendComment(comment SyntheticComment) {
 	s.comments = append(s.comments, comment)
 }
 
@@ -59,7 +64,7 @@ func (s Source) SourceComment() (SyntheticComment, bool) {
 	return SyntheticComment{
 		Leading:         true,
 		SingleLine:      true,
-		Text:            fmt.Sprintf("From %s", s.File),
+		Text:            fmt.Sprintf(" From %s", s.File),
 		TrailingNewLine: false,
 	}, s.File != ""
 }
