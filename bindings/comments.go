@@ -29,7 +29,6 @@ type SupportComments struct {
 	comments []SyntheticComment
 }
 
-// LeadingComment is a helper function for the most common type of comment.
 func (s *SupportComments) LeadingComment(text string) {
 	s.AppendComment(SyntheticComment{
 		Leading:    true,
@@ -37,6 +36,7 @@ func (s *SupportComments) LeadingComment(text string) {
 		// All go comments are `// ` prefixed, so add a space.
 		Text:            " " + text,
 		TrailingNewLine: false,
+		DoNotFormat:     true,
 	})
 }
 
