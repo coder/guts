@@ -2,10 +2,7 @@ package bindings
 
 import (
 	"fmt"
-	"go/token"
 	"go/types"
-
-	"github.com/dop251/goja"
 )
 
 type Node interface {
@@ -47,12 +44,6 @@ func (i Identifier) Ref() string {
 	return i.Prefix + i.Name
 }
 
-// Source is the golang file that an entity is sourced from.
-type Source struct {
-	File     string
-	Position token.Position
-}
-
 type HeritageType string
 
 const (
@@ -75,26 +66,6 @@ func HeritageClauseExtends(args ...ExpressionType) *HeritageClause {
 		Args:  args,
 	}
 }
-
-func (s Source) Comment(n *goja.Object) Comment {
-	return Comment{
-		SingleLine:      true,
-		Text:            fmt.Sprintf("From %s", s.File),
-		TrailingNewLine: false,
-		Node:            n,
-	}
-}
-
-type Comment struct {
-	// Single or multi-line comment
-	SingleLine      bool
-	Text            string
-	TrailingNewLine bool
-
-	Node *goja.Object
-}
-
-func (c *Comment) isNode() {}
 
 type Modifier string
 

@@ -230,14 +230,14 @@ func (r *anyLintIgnore) Visit(node bindings.Node) (w walk.Visitor) {
 			}
 		}
 		if anyParam {
-			node.Comments = append(node.Comments, "biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it")
+			node.LeadingComment("biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it")
 		}
 
 		for _, field := range node.Fields {
 			h := &hasAnyVisitor{}
 			walk.Walk(h, field.Type)
 			if h.hasAnyValue {
-				field.FieldComments = append(field.FieldComments, "biome-ignore lint lint/complexity/noUselessTypeConstraint: ignore linter")
+				node.LeadingComment("biome-ignore lint lint/complexity/noUselessTypeConstraint: ignore linter")
 			}
 		}
 
