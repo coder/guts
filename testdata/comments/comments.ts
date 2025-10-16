@@ -21,7 +21,16 @@ export interface CommentedStructure {
     readonly All: string; // Inline comment
     //  Another leading comment 
     readonly Block: string;
+    /* Multi
+        Line
+        Comment
+        */
+    readonly MultiLine: string;
 }
 
 // From comments/comments.go
 export const Constant = "value";
+
+// From comments/comments.go
+export interface InheritedCommentedStructure extends CommentedStructure {
+}

@@ -81,6 +81,9 @@ func NewGolangParser() (*GoParser, error) {
 	}, nil
 }
 
+// PreserveComments will attempt to preserve any comments associated with
+// the golang types. This feature is still a work in progress, and may not
+// preserve all comments or match all expectations.
 func (p *GoParser) PreserveComments() *GoParser {
 	p.preserveComments = true
 	return p

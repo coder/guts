@@ -19,6 +19,18 @@ type CommentedStructure struct {
 
 	/*  Another leading comment */
 	Block string
+
+	/* Multi
+	Line
+	Comment
+	*/
+	MultiLine string
+}
+
+type InheritedCommentedStructure struct {
+	// CommentedStructure is a commented field, but in typescript it has no place
+	// since it is covered by an "extend" clause. Not sure where to put it.
+	CommentedStructure
 }
 
 /*
@@ -28,4 +40,5 @@ type BlockComment struct {
 }
 
 // Constant is just a value
+// Constants are not yet supported for comments
 const Constant = "value" // Constant comment
