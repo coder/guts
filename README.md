@@ -37,6 +37,11 @@ See the [simple example](./example/simple) for a basic usage of the library. A l
 ```go
 // Step 1: Create a new Golang parser
 golang, _ := guts.NewGolangParser()
+
+// Optional: Preserve comments from the golang source code
+// This feature is still experimental and may not work in all cases
+golang.PreserveComments()
+
 // Step 2: Configure the parser
 _ = golang.IncludeGenerate("github.com/coder/guts/example/simple")
 // Step 3: Convert the Golang to the typescript AST
