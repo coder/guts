@@ -39,9 +39,10 @@ type GoParser struct {
 	// This needs to be a producer function, as the AST is mutated directly,
 	// and we cannot have shared references.
 	// Eg: "time.Time" -> "string"
-	typeOverrides map[string]TypeOverride
-	config        *packages.Config
-	fileSet       *token.FileSet
+	typeOverrides    map[string]TypeOverride
+	config           *packages.Config
+	fileSet          *token.FileSet
+	preserveComments bool
 }
 
 // NewGolangParser returns a new GoParser object.
@@ -80,6 +81,11 @@ func NewGolangParser() (*GoParser, error) {
 	}, nil
 }
 
+func (p *GoParser) PreserveComments() *GoParser {
+	p.preserveComments = true
+	return p
+}
+
 // IncludeCustomDeclaration is an advanced form of IncludeCustom.
 func (p *GoParser) IncludeCustomDeclaration(mappings map[string]TypeOverride) {
 	for k, v := range mappings {
@@ -115,6 +121,7 @@ func (p *GoParser) IncludeCustom(mappings map[GolangType]GolangType) error {
 			return exp
 		}
 	}
+
 	return nil
 }
 
@@ -174,9 +181,10 @@ func (p *GoParser) include(directory string, prefix string, reference bool) erro
 // The returned typescript object can be mutated before serializing.
 func (p *GoParser) ToTypescript() (*Typescript, error) {
 	typescript := &Typescript{
-		typescriptNodes: make(map[string]*typescriptNode),
-		parsed:          p,
-		skip:            p.Skips,
+		typescriptNodes:  make(map[string]*typescriptNode),
+		parsed:           p,
+		skip:             p.Skips,
+		preserveComments: p.preserveComments,
 	}
 
 	// Parse all go types to the typescript AST
@@ -209,9 +217,10 @@ type Typescript struct {
 	// parsed go code. All names should be unique. If non-unique names exist, that
 	// means packages contain the same named types.
 	// TODO: the key "string" should be replaced with "Identifier"
-	typescriptNodes map[string]*typescriptNode
-	parsed          *GoParser
-	skip            map[string]struct{}
+	typescriptNodes  map[string]*typescriptNode
+	parsed           *GoParser
+	skip             map[string]struct{}
+	preserveComments bool
 	// Do not allow calling serialize more than once.
 	// The call affects the state.
 	serialized bool
@@ -436,6 +445,11 @@ func (ts *Typescript) parse(obj types.Object) error {
 			node, err := ts.buildStruct(obj, underNamed)
 			if err != nil {
 				return xerrors.Errorf("generate %q: %w", objectIdentifier.Ref(), err)
+			}
+
+			if ts.preserveComments {
+				cmts := ts.parsed.CommentForObject(obj)
+				node.ASTCommentGroup(cmts)
 			}
 			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 				Node: node,
@@ -791,6 +805,10 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 			}
 		}
 
+		if ts.preserveComments {
+			cmts := ts.parsed.CommentForObject(field)
+			tsField.ASTCommentGroup(cmts)
+		}
 		tsi.Fields = append(tsi.Fields, tsField)
 	}
 
