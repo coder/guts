@@ -13,8 +13,7 @@ type Interface struct {
 	Fields     []*PropertySignature
 	Parameters []*TypeParameter
 	Heritage   []*HeritageClause
-	// Comments maybe should be its own AST node?
-	Comments []string
+	SupportComments
 	Source
 }
 
@@ -28,8 +27,7 @@ type PropertySignature struct {
 	Modifiers     []Modifier
 	QuestionToken bool
 	Type          ExpressionType
-	// FieldComments maybe should be its own AST node?
-	FieldComments []string
+	SupportComments
 }
 
 func (*PropertySignature) isNode() {}
@@ -39,6 +37,7 @@ type Alias struct {
 	Modifiers  []Modifier
 	Type       ExpressionType
 	Parameters []*TypeParameter
+	SupportComments
 	Source
 }
 
