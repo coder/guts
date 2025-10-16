@@ -105,6 +105,7 @@ type VariableStatement struct {
 	Modifiers    []Modifier
 	Declarations *VariableDeclarationList
 	Source
+	SupportComments
 }
 
 func (*VariableStatement) isNode()            {}

@@ -58,16 +58,19 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 					if !covers(sp, pos) {
 						continue
 					}
+
+					// nd.Doc are the comments for the entire type/const/var block.
+					if nd.Doc != nil {
+						found = append(found, syntheticComments(true, nd.Doc)...)
+					}
+
 					switch spec := sp.(type) {
 					case *ast.ValueSpec:
 						// const/var
 						for _, name := range spec.Names {
 							if name.Pos() == pos {
-								if spec.Doc != nil {
-									found = syntheticComments(true, nd.Doc)
-								} else {
-									found = syntheticComments(true, spec.Doc)
-								}
+								found = append(found, syntheticComments(true, spec.Doc)...)
+								found = append(found, syntheticComments(false, spec.Comment)...)
 								return false
 							}
 						}
@@ -76,11 +79,8 @@ func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.Synthe
 						// type declarations (struct/interface/alias)
 						if spec.Name != nil && spec.Name.Pos() == pos {
 							// comment on the type itself
-							if spec.Doc != nil {
-								found = syntheticComments(true, spec.Doc)
-							} else {
-								found = syntheticComments(true, nd.Doc)
-							}
+							found = append(found, syntheticComments(true, spec.Doc)...)
+							found = append(found, syntheticComments(false, spec.Comment)...)
 							return false
 						}
 

@@ -29,7 +29,9 @@ export interface CommentedStructure {
 }
 
 // From comments/comments.go
-export const Constant = "value";
+// Constant is just a value
+export const Constant = "value"; // An inline note
+
 
 // From comments/comments.go
 export interface InheritedCommentedStructure extends CommentedStructure {

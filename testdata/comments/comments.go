@@ -40,5 +40,4 @@ type BlockComment struct {
 }
 
 // Constant is just a value
-// Constants are not yet supported for comments
-const Constant = "value" // Constant comment
+const Constant = "value" // An inline note

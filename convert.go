@@ -488,14 +488,21 @@ func (ts *Typescript) parse(obj types.Object) error {
 				return xerrors.Errorf("(map) generate %q: %w", objectIdentifier.Ref(), err)
 			}
 
+			aliasNode := &bindings.Alias{
+				Name:       objectIdentifier,
+				Modifiers:  []bindings.Modifier{},
+				Type:       ty.Value,
+				Parameters: ty.TypeParameters,
+				Source:     ts.location(obj),
+			}
+
+			if ts.preserveComments {
+				cmts := ts.parsed.CommentForObject(obj)
+				aliasNode.AppendComments(cmts)
+			}
+
 			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
-				Node: &bindings.Alias{
-					Name:       objectIdentifier,
-					Modifiers:  []bindings.Modifier{},
-					Type:       ty.Value,
-					Parameters: ty.TypeParameters,
-					Source:     ts.location(obj),
-				},
+				Node: aliasNode,
 			})
 		case *types.Interface:
 			// Interfaces are used as generics. Non-generic interfaces are
@@ -576,6 +583,12 @@ func (ts *Typescript) parse(obj types.Object) error {
 					if err != nil {
 						return xerrors.Errorf("basic const %q: %w", objectIdentifier.Ref(), err)
 					}
+
+					if ts.preserveComments {
+						cmts := ts.parsed.CommentForObject(obj)
+						cnst.AppendComments(cmts)
+					}
+
 					return ts.setNode(objectIdentifier.Ref(), typescriptNode{
 						Node: cnst,
 					})
