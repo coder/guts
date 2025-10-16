@@ -14,7 +14,9 @@ export enum EnumInt {
 }
 
 // From enums/enums.go
-// EnumSliceType is a slice of string-based enums
+/**
+ * EnumSliceType is a slice of string-based enums
+ */
 export type EnumSliceType = readonly EnumString[];
 
 // From enums/enums.go

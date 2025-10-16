@@ -19,6 +19,10 @@ type SyntheticComment struct {
 	SingleLine      bool
 	Text            string
 	TrailingNewLine bool
+
+	// DoNotFormat indicates this comment should not be attempted to be reformatted.
+	// Guts will attempt to format comments into JSDoc style comments where possible.
+	DoNotFormat bool
 }
 
 type SupportComments struct {
@@ -66,5 +70,6 @@ func (s Source) SourceComment() (SyntheticComment, bool) {
 		SingleLine:      true,
 		Text:            fmt.Sprintf(" From %s", s.File),
 		TrailingNewLine: false,
+		DoNotFormat:     true,
 	}, s.File != ""
 }

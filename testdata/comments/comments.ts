@@ -8,18 +8,26 @@ export interface BlockComment {
 }
 
 // From comments/comments.go
-// CommentedStructure is a struct with a comment.
-//
-// It actually has 2 comments?!
-// TODO: Maybe add a third comment!
+/**
+ * CommentedStructure is a struct with a comment.
+ *
+ * It actually has 2 comments?!
+ * TODO: Maybe add a third comment!
+ */
 export interface CommentedStructure {
     readonly Inline: string; // Field comment
-    // Leading comment
+    /**
+     * Leading comment
+     */
     readonly Leading: string;
     readonly Trailing: string;
-    // Leading comment
+    /**
+     * Leading comment
+     */
     readonly All: string; // Inline comment
-    //  Another leading comment 
+    /**
+     *  Another leading comment
+     */
     readonly Block: string;
     /* Multi
         Line
@@ -29,7 +37,9 @@ export interface CommentedStructure {
 }
 
 // From comments/comments.go
-// Constant is just a value
+/**
+ * Constant is just a value
+ */
 export const Constant = "value"; // An inline note
 
 

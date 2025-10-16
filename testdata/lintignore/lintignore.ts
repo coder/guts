@@ -4,9 +4,13 @@
 export type AnyThing = any;
 
 // From lintignore/lintignore.go
-// biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it
+/**
+ * biome-ignore lint lint/complexity/noUselessTypeConstraint: golang does 'any' for generics, typescript does not like it
+ */
 export interface LintIgnore<T extends any> {
     readonly Foo: T;
-    // empty interface{} type, falling back to unknown
+    /**
+     * empty interface{} type, falling back to unknown
+     */
     readonly AnyFoo: unknown;
 }
