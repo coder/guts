@@ -14,7 +14,7 @@ type CommentedStructure struct {
 	// Trailing comment
 
 	// Leading comment
-	All string // Field comment
+	All string // Inline comment
 	// Trailing comment
 
 	/*  Another leading comment */
@@ -26,3 +26,6 @@ type CommentedStructure struct {
 */
 type BlockComment struct {
 }
+
+// Constant is just a value
+const Constant = "value" // Constant comment

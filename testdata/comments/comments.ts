@@ -13,29 +13,16 @@ export interface BlockComment {
 // It actually has 2 comments?!
 // TODO: Maybe add a third comment!
 export interface CommentedStructure {
-    // CommentedStructure is a struct with a comment.
-    //
-    // It actually has 2 comments?!
-    // TODO: Maybe add a third comment!
+    // Field comment
     readonly Inline: string;
-    // CommentedStructure is a struct with a comment.
-    //
-    // It actually has 2 comments?!
-    // TODO: Maybe add a third comment!
+    // Leading comment
     readonly Leading: string;
-    // CommentedStructure is a struct with a comment.
-    //
-    // It actually has 2 comments?!
-    // TODO: Maybe add a third comment!
     readonly Trailing: string;
-    // CommentedStructure is a struct with a comment.
-    //
-    // It actually has 2 comments?!
-    // TODO: Maybe add a third comment!
+    // Leading comment
     readonly All: string;
-    // CommentedStructure is a struct with a comment.
-    //
-    // It actually has 2 comments?!
-    // TODO: Maybe add a third comment!
+    //  Another leading comment 
     readonly Block: string;
 }
+
+// From comments/comments.go
+export const Constant = "value";
