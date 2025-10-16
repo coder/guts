@@ -24,6 +24,7 @@ func (p *GoParser) CommentForObject(obj types.Object) []bindings.SyntheticCommen
 // For functions/methods it returns FuncDecl.Doc.
 // For const/var/type it prefers Spec.Doc, else GenDecl.Doc.
 // For struct/interface members it returns Field.Doc, else Field.Comment (trailing).
+// Disclaimer: A lot of this code was AI generated. Feel free to improve it!
 func CommentForObject(obj types.Object, pkg *packages.Package) []bindings.SyntheticComment {
 	if obj == nil || pkg == nil {
 		return nil
