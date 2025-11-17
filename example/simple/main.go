@@ -28,8 +28,14 @@ func main() {
 	_ = golang.IncludeCustom(map[string]string{
 		"time.Time": "string",
 	})
+	// Common standard mappings exist as an easy starting place.
+	golang.IncludeCustomDeclaration(config.StandardMappings())
+
 	// Exclude SecondaryType from output
 	_ = golang.ExcludeCustom("github.com/coder/guts/example/simple.SecondaryType")
+
+	// Optionally bring over the golang comments to the typescript output
+	golang.PreserveComments()
 
 	// Convert the golang types to typescript AST
 	ts, _ := golang.ToTypescript()
