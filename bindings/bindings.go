@@ -779,7 +779,7 @@ func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.O
 			node,
 			b.vm.ToValue(c.Leading),
 			b.vm.ToValue(c.SingleLine),
-			b.vm.ToValue(convertDeprecation(c.Text)),
+			b.vm.ToValue(c.Text),
 			b.vm.ToValue(c.TrailingNewLine),
 		)
 		if err != nil {
