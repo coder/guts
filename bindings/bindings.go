@@ -756,7 +756,7 @@ func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.O
 		sep := ""
 		for _, cmt := range jsDoc {
 			jsDocComment.WriteString(sep)
-			jsDocComment.WriteString(cmt.Text)
+			jsDocComment.WriteString(convertDeprecation(cmt.Text))
 			sep = "\n *"
 		}
 		jsDocComment.WriteString("\n ")
@@ -779,7 +779,7 @@ func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.O
 			node,
 			b.vm.ToValue(c.Leading),
 			b.vm.ToValue(c.SingleLine),
-			b.vm.ToValue(c.Text),
+			b.vm.ToValue(convertDeprecation(c.Text)),
 			b.vm.ToValue(c.TrailingNewLine),
 		)
 		if err != nil {
@@ -789,4 +789,12 @@ func (b *Bindings) CommentGojaObject(comments []SyntheticComment, object *goja.O
 	}
 
 	return node, nil
+}
+
+func convertDeprecation(txt string) string {
+	if len(txt) > 13 && txt[:13] == " Deprecated: " {
+		return " @deprecated " + txt[13:]
+	}
+
+	return txt
 }

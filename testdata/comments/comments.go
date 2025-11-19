@@ -41,3 +41,9 @@ type BlockComment struct {
 
 // Constant is just a value
 const Constant = "value" // An inline note
+
+// DeprecatedComment is a comment with a deprecation note
+//
+// Deprecated: this type is no longer used
+type DeprecatedComment struct {
+}

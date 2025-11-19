@@ -44,5 +44,14 @@ export const Constant = "value"; // An inline note
 
 
 // From comments/comments.go
+/**
+ * DeprecatedComment is a comment with a deprecation note
+ *
+ * @deprecated this type is no longer used
+ */
+export interface DeprecatedComment {
+}
+
+// From comments/comments.go
 export interface InheritedCommentedStructure extends CommentedStructure {
 }
