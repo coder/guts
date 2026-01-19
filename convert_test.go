@@ -90,6 +90,11 @@ func TestGeneration(t *testing.T) {
 			case "testdata/excludecustom":
 				err = gen.ExcludeCustom("github.com/coder/guts/testdata/excludecustom.Secret")
 				require.NoErrorf(t, err, "exclude %q", dir)
+			case "testdata/alias":
+				err = gen.IncludeCustom(map[guts.GolangType]guts.GolangType{
+					"github.com/coder/guts/testdata/alias.RemappedAlias": "string",
+				})
+				require.NoError(t, err)
 			}
 
 			gen.IncludeCustomDeclaration(config.StandardMappings())
