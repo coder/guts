@@ -125,11 +125,10 @@ func EnumAsTypes(ts *guts.Typescript) {
 
 		// Replace the enum with an alias type
 		ts.ReplaceNode(key, &bindings.Alias{
-			Name:            enum.Name,
-			Modifiers:       enum.Modifiers,
-			Type:            union,
-			Source:          enum.Source,
-			SupportComments: enum.SupportComments,
+			Name:      enum.Name,
+			Modifiers: enum.Modifiers,
+			Type:      union,
+			Source:    enum.Source,
 		})
 	})
 }
