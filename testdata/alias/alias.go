@@ -15,3 +15,6 @@ type AliasStruct = FooStruct
 type AliasStructNested = AliasStruct
 type AliasStructSlice = []FooStruct
 type AliasStructNestedSlice = []AliasStructNested
+
+// RemappedAlias should be manually remapped to "string" in the test settings.
+type RemappedAlias = FooStruct

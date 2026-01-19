@@ -430,6 +430,17 @@ func (ts *Typescript) parse(obj types.Object) error {
 	switch obj := obj.(type) {
 	// All named types are type declarations
 	case *types.TypeName:
+		// Check for any custom overrides before processing any named types.
+		if custom, ok := ts.parsed.typeOverrides[obj.Type().String()]; ok {
+			return ts.setNode(objectIdentifier.Ref(), typescriptNode{
+				Node: &bindings.Alias{
+					Name:   objectIdentifier,
+					Type:   custom(),
+					Source: ts.location(obj),
+				},
+			})
+		}
+
 		var rhs types.Type
 		switch typedObj := obj.Type().(type) {
 		case *types.Named:

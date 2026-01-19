@@ -35,3 +35,6 @@ export type Foo = string;
 export interface FooStruct {
     readonly Key: string;
 }
+
+// From alias/alias.go
+export type RemappedAlias = string;
