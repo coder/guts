@@ -125,10 +125,11 @@ func EnumAsTypes(ts *guts.Typescript) {
 
 		// Replace the enum with an alias type
 		ts.ReplaceNode(key, &bindings.Alias{
-			Name:      enum.Name,
-			Modifiers: enum.Modifiers,
-			Type:      union,
-			Source:    enum.Source,
+			Name:            enum.Name,
+			Modifiers:       enum.Modifiers,
+			Type:            union,
+			Source:          enum.Source,
+			SupportComments: enum.SupportComments,
 		})
 	})
 }
@@ -374,11 +375,12 @@ func InterfaceToType(ts *guts.Typescript) {
 
 		// Replace the interface with a type alias
 		ts.ReplaceNode(key, &bindings.Alias{
-			Name:       intf.Name,
-			Modifiers:  intf.Modifiers,
-			Type:       typeLiteral,
-			Parameters: intf.Parameters,
-			Source:     intf.Source,
+			Name:            intf.Name,
+			Modifiers:       intf.Modifiers,
+			Type:            typeLiteral,
+			Parameters:      intf.Parameters,
+			Source:          intf.Source,
+			SupportComments: intf.SupportComments,
 		})
 	})
 }
