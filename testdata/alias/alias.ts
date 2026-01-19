@@ -38,3 +38,8 @@ export interface FooStruct {
 
 // From alias/alias.go
 export type RemappedAlias = string;
+
+// From alias/alias.go
+export interface UseAliasedType {
+    readonly Field1: string;
+}

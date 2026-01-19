@@ -1129,6 +1129,13 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			},
 		}, nil
 	case *types.Alias:
+		custom, ok := ts.parsed.typeOverrides[ty.String()]
+		if ok {
+			return parsedType{
+				Value: custom(),
+			}, nil
+		}
+
 		// See https://github.com/golang/go/issues/66559
 		// Rhs will traverse all aliasing types until it finds the base type.
 		return ts.typescriptType(ty.Rhs())
