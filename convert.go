@@ -870,6 +870,14 @@ func (p parsedType) WithComments(comments ...string) parsedType {
 
 // TODO: Return comments?
 func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
+	// No matter what the type is, if we have some custom override, always use that.
+	custom, ok := ts.parsed.typeOverrides[ty.String()]
+	if ok {
+		return parsedType{
+			Value: custom(),
+		}, nil
+	}
+
 	switch ty := ty.(type) {
 	case *types.Signature:
 		// TODO: Handle functions better
@@ -1129,13 +1137,6 @@ func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
 			},
 		}, nil
 	case *types.Alias:
-		custom, ok := ts.parsed.typeOverrides[ty.String()]
-		if ok {
-			return parsedType{
-				Value: custom(),
-			}, nil
-		}
-
 		// See https://github.com/golang/go/issues/66559
 		// Rhs will traverse all aliasing types until it finds the base type.
 		return ts.typescriptType(ty.Rhs())

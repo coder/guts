@@ -19,6 +19,12 @@ type AliasStructNestedSlice = []AliasStructNested
 // RemappedAlias should be manually remapped to "string" in the test settings.
 type RemappedAlias = FooStruct
 
-type UseAliasedType struct {
-	Field1 RemappedAlias
+type UseAliasedType[G any] struct {
+	Field     RemappedAlias
+	AsKey     map[RemappedAlias]string
+	AsVal     map[string]RemappedAlias
+	AsSlice   []RemappedAlias
+	AsGeneric G
 }
+
+type GenericUseRemappedAlias = UseAliasedType[RemappedAlias]
