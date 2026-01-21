@@ -870,6 +870,14 @@ func (p parsedType) WithComments(comments ...string) parsedType {
 
 // TODO: Return comments?
 func (ts *Typescript) typescriptType(ty types.Type) (parsedType, error) {
+	// No matter what the type is, if we have some custom override, always use that.
+	custom, ok := ts.parsed.typeOverrides[ty.String()]
+	if ok {
+		return parsedType{
+			Value: custom(),
+		}, nil
+	}
+
 	switch ty := ty.(type) {
 	case *types.Signature:
 		// TODO: Handle functions better

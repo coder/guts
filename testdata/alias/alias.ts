@@ -37,4 +37,22 @@ export interface FooStruct {
 }
 
 // From alias/alias.go
+export interface GenericUseRemappedAlias {
+    readonly Field: string;
+    readonly AsKey: Record<string, string> | null;
+    readonly AsVal: Record<string, string> | null;
+    readonly AsSlice: readonly string[];
+    readonly AsGeneric: string;
+}
+
+// From alias/alias.go
 export type RemappedAlias = string;
+
+// From alias/alias.go
+export interface UseAliasedType<G extends any> {
+    readonly Field: string;
+    readonly AsKey: Record<string, string> | null;
+    readonly AsVal: Record<string, string> | null;
+    readonly AsSlice: readonly string[];
+    readonly AsGeneric: G;
+}
