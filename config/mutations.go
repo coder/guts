@@ -374,11 +374,12 @@ func InterfaceToType(ts *guts.Typescript) {
 
 		// Replace the interface with a type alias
 		ts.ReplaceNode(key, &bindings.Alias{
-			Name:       intf.Name,
-			Modifiers:  intf.Modifiers,
-			Type:       typeLiteral,
-			Parameters: intf.Parameters,
-			Source:     intf.Source,
+			Name:            intf.Name,
+			Modifiers:       intf.Modifiers,
+			Type:            typeLiteral,
+			Parameters:      intf.Parameters,
+			Source:          intf.Source,
+			SupportComments: intf.SupportComments,
 		})
 	})
 }
