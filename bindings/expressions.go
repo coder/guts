@@ -177,6 +177,7 @@ type EnumMember struct {
 	Name string
 	// Value is allowed to be nil, which results in `undefined`.
 	Value ExpressionType
+	SupportComments
 }
 
 func (*EnumMember) isNode()           {}
