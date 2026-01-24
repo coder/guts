@@ -479,13 +479,18 @@ func (ts *Typescript) parse(obj types.Object) error {
 			// If this has 'const's, then it is an enum. The enum code will
 			// patch this value to be more specific.
 			ts.updateNode(objectIdentifier.Ref(), func(n *typescriptNode) {
-				n.Node = &bindings.Alias{
+				aliasNode := &bindings.Alias{
 					Name:       objectIdentifier,
 					Modifiers:  []bindings.Modifier{},
 					Type:       rhs.Value,
 					Parameters: rhs.TypeParameters,
 					Source:     ts.location(obj),
 				}
+				if ts.preserveComments {
+					cmts := ts.parsed.CommentForObject(obj)
+					aliasNode.AppendComments(cmts)
+				}
+				n.Node = aliasNode
 			})
 			return nil
 		case *types.Map, *types.Array, *types.Slice:

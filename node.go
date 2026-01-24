@@ -38,10 +38,11 @@ func (t *typescriptNode) AddEnum(member *bindings.EnumMember) {
 		if ok {
 			// Switch to an enum
 			enum := &bindings.Enum{
-				Name:      alias.Name,
-				Modifiers: alias.Modifiers,
-				Members:   []*bindings.EnumMember{member},
-				Source:    alias.Source,
+				Name:            alias.Name,
+				Modifiers:       alias.Modifiers,
+				Members:         []*bindings.EnumMember{member},
+				SupportComments: alias.SupportComments,
+				Source:          alias.Source,
 			}
 			return enum, nil
 		}
