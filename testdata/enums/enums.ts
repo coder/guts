@@ -2,6 +2,9 @@
 
 // From enums/enums.go
 export enum Audience {
+    /**
+     * AudienceTeam is the "team" value
+     */
     Team = "team",
     Tenant = "tenant",
     World = "world"
@@ -10,6 +13,9 @@ export enum Audience {
 // From enums/enums.go
 export enum EnumInt {
     EnumNumBar = 10,
+    /**
+     * EnumNumFoo is the number 5
+     */
     EnumNumFoo = 5
 }
 
@@ -21,8 +27,15 @@ export type EnumSliceType = readonly EnumString[];
 
 // From enums/enums.go
 export enum EnumString {
+    /**
+     * EnumBar is the "bar" value
+     */
     EnumBar = "bar",
     EnumBaz = "baz",
+    /**
+     * EnumFoo is the "foo" value
+     * This comment should be preserved
+     */
     EnumFoo = "foo",
     EnumQux = "qux"
 }

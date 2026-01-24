@@ -15,13 +15,16 @@ type (
 
 const (
 	// EnumFoo is the "foo" value
+	// This comment should be preserved
 	EnumFoo EnumString = "foo"
+	// EnumBar is the "bar" value
 	EnumBar EnumString = "bar"
 	EnumBaz EnumString = "baz"
 	EnumQux EnumString = "qux"
 )
 
 const (
+	// EnumNumFoo is the number 5
 	EnumNumFoo EnumInt = 5
 	EnumNumBar EnumInt = 10
 )
@@ -29,7 +32,8 @@ const (
 const (
 	AudienceWorld  Audience = "world"
 	AudienceTenant Audience = "tenant"
-	AudienceTeam   Audience = "team"
+	// AudienceTeam is the "team" value
+	AudienceTeam Audience = "team"
 )
 
 // EmptyEnum references `time.Duration`, so the constant is considered an enum.
