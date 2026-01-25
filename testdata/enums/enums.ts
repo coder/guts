@@ -26,6 +26,9 @@ export enum EnumInt {
 export type EnumSliceType = readonly EnumString[];
 
 // From enums/enums.go
+/**
+ * EnumString is a string-based enum
+ */
 export enum EnumString {
     /**
      * EnumBar is the "bar" value

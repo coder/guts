@@ -115,6 +115,7 @@ type Enum struct {
 	Name      Identifier
 	Modifiers []Modifier
 	Members   []*EnumMember
+	SupportComments
 	Source
 }
 
