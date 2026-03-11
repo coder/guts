@@ -154,10 +154,11 @@ func syntheticComments(leading bool, grp *ast.CommentGroup) []bindings.Synthetic
 		return cmts
 	}
 	for _, c := range grp.List {
+		normalizedText := normalizeCommentText(c.Text)
 		cmts = append(cmts, bindings.SyntheticComment{
 			Leading:         leading,
-			SingleLine:      !strings.Contains(c.Text, "\n"),
-			Text:            normalizeCommentText(c.Text),
+			SingleLine:      !strings.Contains(normalizedText, "\n"),
+			Text:            normalizedText,
 			TrailingNewLine: true,
 		})
 	}
@@ -169,5 +170,10 @@ func normalizeCommentText(text string) string {
 	text = strings.TrimPrefix(text, "//")
 	text = strings.TrimPrefix(text, "/*")
 	text = strings.TrimSuffix(text, "*/")
+
+	// Normalize CRLF to LF for cross-platform compatibility
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+
 	return text
 }
