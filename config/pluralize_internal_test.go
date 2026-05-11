@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestPluralize(t *testing.T) {
 	t.Parallel()
@@ -12,8 +16,6 @@ func TestPluralize(t *testing.T) {
 		// Default: just add "s".
 		{"User", "Users"},
 		{"Audience", "Audiences"},
-		{"EnumString", "EnumStrings"},
-		{"EnumInt", "EnumInts"},
 
 		// Ends in x, s, z: add "es".
 		{"Box", "Boxes"},
@@ -43,12 +45,9 @@ func TestPluralize(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.in, func(t *testing.T) {
 			t.Parallel()
-			if got := pluralize(c.in); got != c.want {
-				t.Fatalf("pluralize(%q) = %q, want %q", c.in, got, c.want)
-			}
+			require.Equal(t, c.want, pluralize(c.in))
 		})
 	}
 }

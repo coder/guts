@@ -376,11 +376,10 @@ func InterfaceToType(ts *guts.Typescript) {
 	})
 }
 
-// pluralize applies best-effort English pluralization to a Go type name so
-// that EnumLists can derive a sensible list constant name (for example
-// "Policy" -> "Policies", "HealthSeverity" -> "HealthSeverities").
+// pluralize applies a best-effort English pluralization rule to a name
+// (for example "Policy" -> "Policies", "Box" -> "Boxes", "User" -> "Users").
 //
-// The heuristic only handles common regular cases; it does not attempt to
+// The heuristic only handles common regular cases. It does not try to
 // recognize already-plural inputs ("Updates" -> "Updateses") or irregular
 // plurals ("Person" -> "Persons", not "People").
 func pluralize(key string) string {
