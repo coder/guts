@@ -22,3 +22,8 @@ export type EnumSliceType = readonly EnumString[];
 export type EnumString = "bar" | "baz" | "foo" | "qux";
 
 export const EnumStrings: EnumString[] = ["bar", "baz", "foo", "qux"];
+
+export const Policies: Policy[] = ["allow", "deny"];
+
+// From enumtypes/enumtypes.go
+export type Policy = "allow" | "deny";
