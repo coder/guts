@@ -35,3 +35,10 @@ const (
 	EnumAliasBoolean    EnumAlias = "bool"
 	EnumAliasListString EnumAlias = "list(string)"
 )
+
+type Policy string
+
+const (
+	EnumPolicyAllow Policy = "allow"
+	EnumPolicyDeny  Policy = "deny"
+)
