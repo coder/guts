@@ -158,15 +158,7 @@ func EnumLists(ts *guts.Typescript) {
 			values = append(values, t)
 		}
 
-		// Pluralize the name
-		name := key + "s"
-		switch key[len(key)-1] {
-		case 'x', 's', 'z':
-			name = key + "es"
-		}
-		if strings.HasSuffix(key, "ch") || strings.HasSuffix(key, "sh") {
-			name = key + "es"
-		}
+		name := pluralize(key)
 
 		addNodes[name] = &bindings.VariableStatement{
 			Modifiers: []bindings.Modifier{},
@@ -382,6 +374,36 @@ func InterfaceToType(ts *guts.Typescript) {
 			SupportComments: intf.SupportComments,
 		})
 	})
+}
+
+// pluralize applies best-effort English pluralization to a Go type name so
+// that EnumLists can derive a sensible list constant name (for example
+// "Policy" -> "Policies", "HealthSeverity" -> "HealthSeverities").
+//
+// The heuristic only handles common regular cases; it does not attempt to
+// recognize already-plural inputs ("Updates" -> "Updateses") or irregular
+// plurals ("Person" -> "Persons", not "People").
+func pluralize(key string) string {
+	if key == "" {
+		return key
+	}
+	if strings.HasSuffix(key, "ch") || strings.HasSuffix(key, "sh") {
+		return key + "es"
+	}
+	switch key[len(key)-1] {
+	case 'x', 's', 'z':
+		return key + "es"
+	case 'y':
+		// consonant + y -> ies, vowel + y -> just s.
+		if len(key) >= 2 && !isVowel(key[len(key)-2]) {
+			return key[:len(key)-1] + "ies"
+		}
+	}
+	return key + "s"
+}
+
+func isVowel(b byte) bool {
+	return strings.IndexByte("aeiouAEIOU", b) >= 0
 }
 
 func isGoEnum(n bindings.Node) (*bindings.Alias, *bindings.UnionType, bool) {
