@@ -33,7 +33,7 @@ type Base struct {
 // Ticket demonstrates a realistic struct with enums, nullable
 // pointers, embedded structs, arrays, and maps.
 type Ticket struct {
-	Base `json:",inline"`
+	Base
 
 	Title       string            `json:"title"`
 	Description *string           `json:"description,omitempty"`

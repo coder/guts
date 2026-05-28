@@ -36,8 +36,7 @@ export const Statuses: Status[] = ["active", "closed", "pending"];
  * Ticket demonstrates a realistic struct with enums, nullable
  * pointers, embedded structs, arrays, and maps.
  */
-export interface Ticket {
-    readonly Base: Base;
+export interface Ticket extends Base {
     readonly title: string;
     readonly description?: string | null;
     readonly status: Status;

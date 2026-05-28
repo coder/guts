@@ -26,8 +26,7 @@ export const StatusSchema = z.enum([
 ]);
 export type Status = z.infer<typeof StatusSchema>;
 
-export const TicketSchema = z.object({
-  Base: BaseSchema,
+export const TicketSchema = BaseSchema.extend({
   title: z.string(),
   description: z.string().optional(),
   status: StatusSchema,
