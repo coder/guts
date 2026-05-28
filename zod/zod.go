@@ -89,9 +89,39 @@ func serializeInterface(name string, iface *bindings.Interface) string {
 	schema := schemaName(name)
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("export const %s = z.object({\n", schema))
+	// Handle struct embedding (heritage clauses) via .extend().
+	base := ""
+	for _, h := range iface.Heritage {
+		for _, arg := range h.Args {
+			ref := ""
+			if ewta, ok := arg.(*bindings.ExpressionWithTypeArguments); ok {
+				if rt, ok := ewta.Expression.(*bindings.ReferenceType); ok {
+					ref = schemaName(rt.Name.Ref())
+				}
+			}
+			if rt, ok := arg.(*bindings.ReferenceType); ok {
+				ref = schemaName(rt.Name.Ref())
+			}
+			if ref != "" {
+				if base != "" {
+					panic(fmt.Sprintf("multiple heritage bases for %s: %s and %s (Zod has no multiple inheritance)", name, base, ref))
+				}
+				base = ref
+			}
+		}
+	}
+
+	if base != "" && len(iface.Fields) > 0 {
+		b.WriteString(fmt.Sprintf("export const %s = %s.extend({\n", schema, base))
+	} else if base != "" {
+		b.WriteString(fmt.Sprintf("export const %s = %s;\n", schema, base))
+		b.WriteString(fmt.Sprintf("export type %s = z.infer<typeof %s>;\n", name, schema))
+		return b.String()
+	} else {
+		b.WriteString(fmt.Sprintf("export const %s = z.object({\n", schema))
+	}
 	for _, f := range iface.Fields {
-		zodType := exprToZod(f.Type)
+		zodType := exprToZod(f.Type, name)
 		if f.QuestionToken {
 			zodType += ".optional()"
 		}
@@ -111,7 +141,7 @@ func serializeAlias(name string, alias *bindings.Alias) string {
 	}
 
 	schema := schemaName(name)
-	zodType := exprToZod(alias.Type)
+	zodType := exprToZod(alias.Type, name)
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("export const %s = %s;\n", schema, zodType))
 	b.WriteString(fmt.Sprintf("export type %s = z.infer<typeof %s>;\n", name, schema))
@@ -135,13 +165,14 @@ func serializeStringEnum(name string, union *bindings.UnionType) string {
 }
 
 func serializeVariableStatement(name string, vs *bindings.VariableStatement) string {
-	// Variable statements are typically enum value lists (const Xs = [...]).
-	// Not directly representable in Zod schemas; skip.
 	_ = vs
 	return ""
 }
 
-func exprToZod(expr bindings.ExpressionType) string {
+// exprToZod converts an AST expression to Zod code. selfName is
+// the name of the type currently being serialized, used to detect
+// self-references and emit z.lazy().
+func exprToZod(expr bindings.ExpressionType, selfName string) string {
 	if expr == nil {
 		return "z.unknown()"
 	}
@@ -151,22 +182,21 @@ func exprToZod(expr bindings.ExpressionType) string {
 	case *bindings.LiteralType:
 		return literalToZod(e)
 	case *bindings.ReferenceType:
-		return referenceToZod(e)
+		return referenceToZod(e, selfName)
 	case *bindings.ArrayType:
-		return fmt.Sprintf("z.array(%s)", exprToZod(e.Node))
+		return fmt.Sprintf("z.array(%s)", exprToZod(e.Node, selfName))
 	case *bindings.UnionType:
-		return unionToZod(e)
+		return unionToZod(e, selfName)
 	case *bindings.Null:
 		return "z.null()"
 	case *bindings.TypeLiteralNode:
-		return objectLiteralToZod(e)
+		return objectLiteralToZod(e, selfName)
 	case *bindings.TypeIntersection:
-		return intersectionToZod(e)
+		return intersectionToZod(e, selfName)
 	case *bindings.TupleType:
-		return tupleToZod(e)
+		return tupleToZod(e, selfName)
 	case *bindings.OperatorNodeType:
-		// readonly T[] is still z.array(T) in Zod.
-		return exprToZod(e.Type)
+		return exprToZod(e.Type, selfName)
 	default:
 		return "z.unknown()"
 	}
@@ -206,32 +236,32 @@ func literalToZod(lit *bindings.LiteralType) string {
 	}
 }
 
-func referenceToZod(ref *bindings.ReferenceType) string {
+func referenceToZod(ref *bindings.ReferenceType, selfName string) string {
 	name := ref.Name.Ref()
 	schema := schemaName(name)
 
-	// Record<K, V> maps to z.record(K, V).
 	if name == "Record" && len(ref.Arguments) == 2 {
 		return fmt.Sprintf("z.record(%s, %s)",
-			exprToZod(ref.Arguments[0]),
-			exprToZod(ref.Arguments[1]),
+			exprToZod(ref.Arguments[0], selfName),
+			exprToZod(ref.Arguments[1], selfName),
 		)
 	}
 
-	// Omit, Pick, Partial are TypeScript utility types that don't
-	// have direct Zod equivalents. Emit z.unknown() rather than
-	// a broken reference.
 	switch name {
 	case "Omit", "Pick", "Partial", "Required":
 		return "z.unknown()"
 	}
 
-	_ = schema
+	// Self-referential types need z.lazy() to avoid
+	// reference-before-declaration errors.
+	if name == selfName {
+		return fmt.Sprintf("z.lazy((): z.ZodType => %s)", schema)
+	}
+
 	return schema
 }
 
-func unionToZod(u *bindings.UnionType) string {
-	// Separate null from non-null members.
+func unionToZod(u *bindings.UnionType, selfName string) string {
 	nonNull := make([]bindings.ExpressionType, 0, len(u.Types))
 	hasNull := false
 	for _, t := range u.Types {
@@ -242,28 +272,26 @@ func unionToZod(u *bindings.UnionType) string {
 		}
 	}
 
-	// T | null -> inner.nullable()
 	if hasNull && len(nonNull) == 1 {
-		return exprToZod(nonNull[0]) + ".nullable()"
+		return exprToZod(nonNull[0], selfName) + ".nullable()"
 	}
 
-	// Single non-null member with no null is just the member.
 	if !hasNull && len(nonNull) == 1 {
-		return exprToZod(nonNull[0])
+		return exprToZod(nonNull[0], selfName)
 	}
 
 	parts := make([]string, 0, len(u.Types))
 	for _, t := range u.Types {
-		parts = append(parts, exprToZod(t))
+		parts = append(parts, exprToZod(t, selfName))
 	}
 	return fmt.Sprintf("z.union([%s])", strings.Join(parts, ", "))
 }
 
-func objectLiteralToZod(tl *bindings.TypeLiteralNode) string {
+func objectLiteralToZod(tl *bindings.TypeLiteralNode, selfName string) string {
 	var b strings.Builder
 	b.WriteString("z.object({\n")
 	for _, f := range tl.Members {
-		zodType := exprToZod(f.Type)
+		zodType := exprToZod(f.Type, selfName)
 		if f.QuestionToken {
 			zodType += ".optional()"
 		}
@@ -273,18 +301,16 @@ func objectLiteralToZod(tl *bindings.TypeLiteralNode) string {
 	return b.String()
 }
 
-func intersectionToZod(inter *bindings.TypeIntersection) string {
+func intersectionToZod(inter *bindings.TypeIntersection, selfName string) string {
 	if len(inter.Types) == 0 {
 		return "z.unknown()"
 	}
 	if len(inter.Types) == 1 {
-		return exprToZod(inter.Types[0])
+		return exprToZod(inter.Types[0], selfName)
 	}
-	// A & B -> A.merge(B) for objects, but we can't know at
-	// serialization time. Use z.intersection for safety.
 	parts := make([]string, 0, len(inter.Types))
 	for _, t := range inter.Types {
-		parts = append(parts, exprToZod(t))
+		parts = append(parts, exprToZod(t, selfName))
 	}
 	result := parts[0]
 	for _, p := range parts[1:] {
@@ -293,8 +319,8 @@ func intersectionToZod(inter *bindings.TypeIntersection) string {
 	return result
 }
 
-func tupleToZod(t *bindings.TupleType) string {
-	inner := exprToZod(t.Node)
+func tupleToZod(t *bindings.TupleType, selfName string) string {
+	inner := exprToZod(t.Node, selfName)
 	return fmt.Sprintf("z.array(%s)", inner)
 }
 
