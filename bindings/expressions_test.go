@@ -39,7 +39,7 @@ func kw(k bindings.LiteralKeyword) *bindings.LiteralKeyword {
 func zMethodCall(name string, args ...bindings.ExpressionType) *bindings.CallExpression {
 	return &bindings.CallExpression{
 		Expression: &bindings.PropertyAccessExpression{
-			Expression: &bindings.IdentifierExpression{Name: "z"},
+			Expression: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "z"}},
 			Name:       name,
 		},
 		Arguments: args,
@@ -48,14 +48,31 @@ func zMethodCall(name string, args ...bindings.ExpressionType) *bindings.CallExp
 
 func TestIdentifierExpression(t *testing.T) {
 	t.Parallel()
-	got := roundTrip(t, &bindings.IdentifierExpression{Name: "BaseSchema"})
-	require.Equal(t, "BaseSchema", got)
+
+	t.Run("bare name", func(t *testing.T) {
+		t.Parallel()
+		got := roundTrip(t, &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "BaseSchema"}})
+		require.Equal(t, "BaseSchema", got)
+	})
+
+	// IdentifierExpression takes a bindings.Identifier so cross-package
+	// prefixing (set during Go parsing to avoid TS namespace collisions)
+	// flows through to the emitted name. Without this, a value-position
+	// reference would not match the prefixed declaration the rest of guts
+	// emits for the same Identifier.
+	t.Run("prefix is applied", func(t *testing.T) {
+		t.Parallel()
+		got := roundTrip(t, &bindings.IdentifierExpression{
+			Name: bindings.Identifier{Name: "Schema", Prefix: "External"},
+		})
+		require.Equal(t, "ExternalSchema", got)
+	})
 }
 
 func TestPropertyAccessExpression(t *testing.T) {
 	t.Parallel()
 	got := roundTrip(t, &bindings.PropertyAccessExpression{
-		Expression: &bindings.IdentifierExpression{Name: "z"},
+		Expression: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "z"}},
 		Name:       "string",
 	})
 	require.Equal(t, "z.string", got)
@@ -158,7 +175,7 @@ func TestArrowFunction(t *testing.T) {
 	t.Run("no params no return type", func(t *testing.T) {
 		t.Parallel()
 		got := roundTrip(t, &bindings.ArrowFunction{
-			Body: &bindings.IdentifierExpression{Name: "TicketSchema"},
+			Body: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "TicketSchema"}},
 		})
 		require.Equal(t, "() => TicketSchema", got)
 	})
@@ -168,7 +185,7 @@ func TestArrowFunction(t *testing.T) {
 		// (): z.ZodType => TicketSchema
 		got := roundTrip(t, &bindings.ArrowFunction{
 			ReturnType: bindings.Reference(bindings.Identifier{Name: "z.ZodType"}),
-			Body:       &bindings.IdentifierExpression{Name: "TicketSchema"},
+			Body:       &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "TicketSchema"}},
 		})
 		require.Equal(t, "(): z.ZodType => TicketSchema", got)
 	})
@@ -180,7 +197,7 @@ func TestArrowFunction(t *testing.T) {
 			Parameters: []*bindings.Parameter{
 				{Name: "x", Type: kw(bindings.KeywordNumber)},
 			},
-			Body: &bindings.IdentifierExpression{Name: "x"},
+			Body: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "x"}},
 		})
 		require.Equal(t, "(x: number) => x", got)
 	})
@@ -243,7 +260,7 @@ func TestComposeZodLazyRef(t *testing.T) {
 
 	expr := zMethodCall("lazy", &bindings.ArrowFunction{
 		ReturnType: bindings.Reference(bindings.Identifier{Name: "z.ZodType"}),
-		Body:       &bindings.IdentifierExpression{Name: "TicketSchema"},
+		Body:       &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "TicketSchema"}},
 	})
 	got := roundTrip(t, expr)
 	require.Equal(t, "z.lazy((): z.ZodType => TicketSchema)", got)

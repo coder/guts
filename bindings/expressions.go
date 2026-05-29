@@ -198,12 +198,22 @@ type TypeIntersection struct {
 func (*TypeIntersection) isNode()           {}
 func (*TypeIntersection) isExpressionType() {}
 
-// IdentifierExpression is a value-level identifier reference such as the
-// `z` in `z.string()` or `BaseSchema` in `BaseSchema.extend({...})`. Unlike
-// ReferenceType, which emits a TypeScript type reference, this emits in
-// expression position.
+// IdentifierExpression is a value-position TypeScript identifier such as
+// the `z` in `z.string()` or `BaseSchema` in `BaseSchema.extend({...})`.
+//
+// It is distinct from bindings.Identifier despite the similar name.
+// Identifier is parser-layer plumbing: a qualified-name handle
+// (Name + Package + Prefix) used to resolve and disambiguate references
+// across Go packages, and it is not itself a Node. IdentifierExpression is
+// tree-layer plumbing: a Node that implements ExpressionType so callers
+// can place a value-position identifier inside expression slots like
+// CallExpression.Expression.
+//
+// The Name field is itself an Identifier so cross-package prefixing flows
+// through .Ref() the same way it does for ReferenceType.Name and
+// VariableDeclaration.Name.
 type IdentifierExpression struct {
-	Name string
+	Name Identifier
 }
 
 func (*IdentifierExpression) isNode()           {}

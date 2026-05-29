@@ -888,7 +888,7 @@ func (b *Bindings) IdentifierExpression(expr *IdentifierExpression) (*goja.Objec
 	if err != nil {
 		return nil, err
 	}
-	res, err := idF(goja.Undefined(), b.vm.ToValue(expr.Name))
+	res, err := idF(goja.Undefined(), b.vm.ToValue(expr.Name.Ref()))
 	if err != nil {
 		return nil, xerrors.Errorf("call identifierExpression: %w", err)
 	}
