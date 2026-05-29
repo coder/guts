@@ -34,6 +34,23 @@ func InjectTypeImport(module string, names ...string) guts.MutationFunc {
 	return injectImport(module, true, names...)
 }
 
+// InjectSideEffectImport returns a mutation that appends a bare side-effect
+// import for the given module:
+//
+//	ts.ApplyMutations(config.InjectSideEffectImport("./polyfill"))
+//	// import "./polyfill"
+//
+// Repeat calls for the same module are deduplicated.
+func InjectSideEffectImport(module string) guts.MutationFunc {
+	decl := &bindings.ImportDeclaration{
+		Module:     module,
+		SideEffect: true,
+	}
+	return func(ts *guts.Typescript) {
+		ts.AppendImport(decl)
+	}
+}
+
 func injectImport(module string, isTypeOnly bool, names ...string) guts.MutationFunc {
 	specs := make([]*bindings.ImportSpecifier, 0, len(names))
 	for _, n := range names {

@@ -75,6 +75,23 @@ func TestImportDeclaration(t *testing.T) {
 			},
 			want: `import { Foo, Bar as Baz } from "./schemas";`,
 		},
+		{
+			name: "side effect",
+			decl: &bindings.ImportDeclaration{
+				Module:     "./polyfill",
+				SideEffect: true,
+			},
+			want: `import "./polyfill";`,
+		},
+		{
+			name: "side effect ignores type only",
+			decl: &bindings.ImportDeclaration{
+				Module:     "./polyfill",
+				IsTypeOnly: true,
+				SideEffect: true,
+			},
+			want: `import "./polyfill";`,
+		},
 	}
 
 	for _, tc := range cases {

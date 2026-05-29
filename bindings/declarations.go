@@ -127,18 +127,24 @@ func (*Enum) isDeclarationType() {}
 //	import { z } from "zod"
 //	import { Foo as Bar } from "./schemas"
 //	import type { Baz } from "./types"
+//	import "polyfill"
 //
-// Only the named-imports form is modeled. Default imports and namespace
-// imports (`import * as ns from "x"`) are not yet supported; add them if
-// you need them.
+// Only the named-imports and side-effect forms are modeled. Default imports
+// (`import foo from "x"`) and namespace imports (`import * as ns from "x"`)
+// are not yet supported; add them if you need them.
 type ImportDeclaration struct {
 	// Module is the module specifier (the right-hand side of `from`).
 	Module string
-	// Named is the list of imported names. Order is preserved in the
-	// generated output.
+	// Named is the list of imported names. Order is preserved while merging;
+	// the final emitted order is sorted alphabetically in Serialize.
+	// Ignored when SideEffect is true.
 	Named []*ImportSpecifier
 	// IsTypeOnly emits `import type { ... }` instead of `import { ... }`.
+	// Ignored when SideEffect is true (`import type "x"` is not valid TS).
 	IsTypeOnly bool
+	// SideEffect emits the bare form `import "module"` with no import clause.
+	// When true, Named and IsTypeOnly are ignored.
+	SideEffect bool
 	SupportComments
 	Source
 }

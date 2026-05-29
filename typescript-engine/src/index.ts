@@ -307,18 +307,22 @@ export function importSpecifier(
 // importDeclaration builds a named-imports declaration:
 //   import { a, b as c } from "module"
 //   import type { a, b as c } from "module"
+// When namedImports is undefined the import emits as a side-effect import
+// with no import clause: `import "module"`.
 export function importDeclaration(
   isTypeOnly: boolean,
   moduleSpecifier: string,
-  namedImports: ts.ImportSpecifier[],
+  namedImports: ts.ImportSpecifier[] | undefined,
 ): ts.ImportDeclaration {
   return ts.factory.createImportDeclaration(
     undefined,
-    ts.factory.createImportClause(
-      isTypeOnly,
-      undefined,
-      ts.factory.createNamedImports(namedImports),
-    ),
+    namedImports
+      ? ts.factory.createImportClause(
+          isTypeOnly,
+          undefined,
+          ts.factory.createNamedImports(namedImports),
+        )
+      : undefined,
     ts.factory.createStringLiteral(moduleSpecifier),
   );
 }

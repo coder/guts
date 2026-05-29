@@ -831,26 +831,33 @@ func (b *Bindings) ImportSpecifier(spec *ImportSpecifier) (*goja.Object, error) 
 }
 
 // ImportDeclaration builds the goja ImportDeclaration for a top-level
-// `import { ... } from "module"` statement.
+// `import { ... } from "module"` statement, or a side-effect import
+// (`import "module"`) when decl.SideEffect is true.
 func (b *Bindings) ImportDeclaration(decl *ImportDeclaration) (*goja.Object, error) {
 	declF, err := b.f("importDeclaration")
 	if err != nil {
 		return nil, err
 	}
 
-	specifiers := make([]interface{}, 0, len(decl.Named))
-	for _, n := range decl.Named {
-		obj, err := b.ImportSpecifier(n)
-		if err != nil {
-			return nil, fmt.Errorf("import specifier %q: %w", n.Name, err)
+	var namedImports goja.Value
+	if decl.SideEffect {
+		namedImports = goja.Undefined()
+	} else {
+		specifiers := make([]interface{}, 0, len(decl.Named))
+		for _, n := range decl.Named {
+			obj, err := b.ImportSpecifier(n)
+			if err != nil {
+				return nil, fmt.Errorf("import specifier %q: %w", n.Name, err)
+			}
+			specifiers = append(specifiers, obj)
 		}
-		specifiers = append(specifiers, obj)
+		namedImports = b.vm.NewArray(specifiers...)
 	}
 
 	res, err := declF(goja.Undefined(),
 		b.vm.ToValue(decl.IsTypeOnly),
 		b.vm.ToValue(decl.Module),
-		b.vm.NewArray(specifiers...),
+		namedImports,
 	)
 	if err != nil {
 		return nil, xerrors.Errorf("call importDeclaration: %w", err)
