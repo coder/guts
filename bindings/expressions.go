@@ -197,3 +197,105 @@ type TypeIntersection struct {
 
 func (*TypeIntersection) isNode()           {}
 func (*TypeIntersection) isExpressionType() {}
+
+// IdentifierExpression is a value-position TypeScript identifier such as
+// the `z` in `z.string()` or `BaseSchema` in `BaseSchema.extend({...})`.
+//
+// It is distinct from bindings.Identifier despite the similar name.
+// Identifier is parser-layer plumbing: a qualified-name handle
+// (Name + Package + Prefix) used to resolve and disambiguate references
+// across Go packages, and it is not itself a Node. IdentifierExpression is
+// tree-layer plumbing: a Node that implements ExpressionType so callers
+// can place a value-position identifier inside expression slots like
+// CallExpression.Expression.
+//
+// The Name field is itself an Identifier so cross-package prefixing flows
+// through .Ref() the same way it does for ReferenceType.Name and
+// VariableDeclaration.Name.
+type IdentifierExpression struct {
+	Name Identifier
+}
+
+func (*IdentifierExpression) isNode()           {}
+func (*IdentifierExpression) isExpressionType() {}
+
+// PropertyAccessExpression is `<expression>.<name>`, used to chain method
+// names or member references such as `z.string` or `BaseSchema.extend`.
+type PropertyAccessExpression struct {
+	Expression ExpressionType
+	Name       string
+}
+
+func (*PropertyAccessExpression) isNode()           {}
+func (*PropertyAccessExpression) isExpressionType() {}
+
+// CallExpression is `<expression>(args...)`. It composes with
+// PropertyAccessExpression to build chained calls like
+// `z.string().optional()`.
+type CallExpression struct {
+	Expression ExpressionType
+	Arguments  []ExpressionType
+}
+
+func (*CallExpression) isNode()           {}
+func (*CallExpression) isExpressionType() {}
+
+// ObjectLiteralExpression is `{ k: v, ... }` in expression position. It is
+// distinct from TypeLiteralNode, which emits a TypeScript object type.
+//
+// Only the PropertyAssignment form is modeled. ShorthandPropertyAssignment
+// (`{ x }`), SpreadAssignment (`{ ...rest }`), MethodDeclaration, and
+// accessor properties are not yet supported; add them if you need them.
+type ObjectLiteralExpression struct {
+	Properties []*PropertyAssignment
+}
+
+func (*ObjectLiteralExpression) isNode()           {}
+func (*ObjectLiteralExpression) isExpressionType() {}
+
+// PropertyAssignment is `<name>: <initializer>` inside an
+// ObjectLiteralExpression. It is a node but not an ExpressionType or a
+// DeclarationType because it only appears as a child of
+// ObjectLiteralExpression.
+type PropertyAssignment struct {
+	Name        string
+	Initializer ExpressionType
+}
+
+func (*PropertyAssignment) isNode() {}
+
+// Parameter is a single parameter in an ArrowFunction signature. Name is
+// required; Type may be nil to omit the annotation.
+type Parameter struct {
+	Name string
+	Type ExpressionType
+}
+
+func (*Parameter) isNode() {}
+
+// ArrowFunction is `(parameters): returnType => body`. ReturnType may be
+// nil to omit the annotation. Body is currently required to be a single
+// expression; statement bodies are not yet modeled.
+type ArrowFunction struct {
+	Parameters []*Parameter
+	ReturnType ExpressionType
+	Body       ExpressionType
+}
+
+func (*ArrowFunction) isNode()           {}
+func (*ArrowFunction) isExpressionType() {}
+
+// TypeQuery is `typeof <name>`. It appears in type position, typically as
+// a generic argument such as the `typeof FooSchema` inside
+// `z.infer<typeof FooSchema>`.
+//
+// Name is an Identifier so cross-package prefixing flows through .Ref(),
+// matching the rest of the AST. Without this, a TypeQuery for a prefixed
+// declaration would emit `typeof Foo` while the matching value-position
+// IdentifierExpression emits `ExternalFoo`, and the two would not line up.
+type TypeQuery struct {
+	Name Identifier
+}
+
+func (*TypeQuery) isNode()           {}
+func (*TypeQuery) isExpressionType() {}
