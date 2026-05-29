@@ -33,6 +33,10 @@ func (b *Bindings) ToTypescriptNode(ety Node) (*goja.Object, error) {
 		siObj, err = b.PropertySignature(node)
 	case *TypeParameter:
 		siObj, err = b.TypeParameter(node)
+	case *PropertyAssignment:
+		siObj, err = b.PropertyAssignment(node)
+	case *Parameter:
+		siObj, err = b.Parameter(node)
 	case DeclarationType:
 		// Defer to the ExpressionType implementation
 		siObj, err = b.ToTypescriptDeclarationNode(node)
@@ -135,6 +139,18 @@ func (b *Bindings) ToTypescriptExpressionNode(ety ExpressionType) (*goja.Object,
 		siObj, err = b.TypeLiteralNode(ety)
 	case *TypeIntersection:
 		siObj, err = b.TypeIntersection(ety)
+	case *IdentifierExpression:
+		siObj, err = b.IdentifierExpression(ety)
+	case *PropertyAccessExpression:
+		siObj, err = b.PropertyAccessExpression(ety)
+	case *CallExpression:
+		siObj, err = b.CallExpression(ety)
+	case *ObjectLiteralExpression:
+		siObj, err = b.ObjectLiteralExpression(ety)
+	case *ArrowFunction:
+		siObj, err = b.ArrowFunction(ety)
+	case *TypeQuery:
+		siObj, err = b.TypeQuery(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for field type: %T", ety)
 	}
@@ -861,6 +877,166 @@ func (b *Bindings) ImportDeclaration(decl *ImportDeclaration) (*goja.Object, err
 	)
 	if err != nil {
 		return nil, xerrors.Errorf("call importDeclaration: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// IdentifierExpression builds the goja node for a value-position identifier
+// such as `z` or `BaseSchema`.
+func (b *Bindings) IdentifierExpression(expr *IdentifierExpression) (*goja.Object, error) {
+	idF, err := b.f("identifierExpression")
+	if err != nil {
+		return nil, err
+	}
+	res, err := idF(goja.Undefined(), b.vm.ToValue(expr.Name))
+	if err != nil {
+		return nil, xerrors.Errorf("call identifierExpression: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// PropertyAccessExpression builds `<expression>.<name>`.
+func (b *Bindings) PropertyAccessExpression(expr *PropertyAccessExpression) (*goja.Object, error) {
+	paF, err := b.f("propertyAccessExpression")
+	if err != nil {
+		return nil, err
+	}
+	inner, err := b.ToTypescriptNode(expr.Expression)
+	if err != nil {
+		return nil, fmt.Errorf("property access expression: %w", err)
+	}
+	res, err := paF(goja.Undefined(), inner, b.vm.ToValue(expr.Name))
+	if err != nil {
+		return nil, xerrors.Errorf("call propertyAccessExpression: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// CallExpression builds `<expression>(args...)`.
+func (b *Bindings) CallExpression(expr *CallExpression) (*goja.Object, error) {
+	callF, err := b.f("callExpression")
+	if err != nil {
+		return nil, err
+	}
+	callee, err := b.ToTypescriptNode(expr.Expression)
+	if err != nil {
+		return nil, fmt.Errorf("call expression callee: %w", err)
+	}
+	args := make([]interface{}, 0, len(expr.Arguments))
+	for i, a := range expr.Arguments {
+		v, err := b.ToTypescriptNode(a)
+		if err != nil {
+			return nil, fmt.Errorf("call expression arg %d: %w", i, err)
+		}
+		args = append(args, v)
+	}
+	res, err := callF(goja.Undefined(), callee, b.vm.NewArray(args...))
+	if err != nil {
+		return nil, xerrors.Errorf("call callExpression: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// ObjectLiteralExpression builds `{ k: v, ... }` in expression position.
+func (b *Bindings) ObjectLiteralExpression(expr *ObjectLiteralExpression) (*goja.Object, error) {
+	objF, err := b.f("objectLiteralExpression")
+	if err != nil {
+		return nil, err
+	}
+	props := make([]interface{}, 0, len(expr.Properties))
+	for _, p := range expr.Properties {
+		v, err := b.PropertyAssignment(p)
+		if err != nil {
+			return nil, fmt.Errorf("object literal property %q: %w", p.Name, err)
+		}
+		props = append(props, v)
+	}
+	res, err := objF(goja.Undefined(), b.vm.NewArray(props...))
+	if err != nil {
+		return nil, xerrors.Errorf("call objectLiteralExpression: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// PropertyAssignment builds `<name>: <initializer>` for an
+// ObjectLiteralExpression child.
+func (b *Bindings) PropertyAssignment(pa *PropertyAssignment) (*goja.Object, error) {
+	paF, err := b.f("propertyAssignment")
+	if err != nil {
+		return nil, err
+	}
+	init, err := b.ToTypescriptNode(pa.Initializer)
+	if err != nil {
+		return nil, fmt.Errorf("property assignment %q initializer: %w", pa.Name, err)
+	}
+	res, err := paF(goja.Undefined(), b.vm.ToValue(pa.Name), init)
+	if err != nil {
+		return nil, xerrors.Errorf("call propertyAssignment: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// Parameter builds a single `name: type` arrow-function parameter.
+func (b *Bindings) Parameter(p *Parameter) (*goja.Object, error) {
+	pF, err := b.f("parameter")
+	if err != nil {
+		return nil, err
+	}
+	var typeNode goja.Value = goja.Undefined()
+	if p.Type != nil {
+		typeNode, err = b.ToTypescriptNode(p.Type)
+		if err != nil {
+			return nil, fmt.Errorf("parameter %q type: %w", p.Name, err)
+		}
+	}
+	res, err := pF(goja.Undefined(), b.vm.ToValue(p.Name), typeNode)
+	if err != nil {
+		return nil, xerrors.Errorf("call parameter: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// ArrowFunction builds `(parameters): returnType => body`.
+func (b *Bindings) ArrowFunction(af *ArrowFunction) (*goja.Object, error) {
+	afF, err := b.f("arrowFunction")
+	if err != nil {
+		return nil, err
+	}
+	params := make([]interface{}, 0, len(af.Parameters))
+	for _, p := range af.Parameters {
+		v, err := b.Parameter(p)
+		if err != nil {
+			return nil, fmt.Errorf("arrow function parameter %q: %w", p.Name, err)
+		}
+		params = append(params, v)
+	}
+	var returnType goja.Value = goja.Undefined()
+	if af.ReturnType != nil {
+		returnType, err = b.ToTypescriptNode(af.ReturnType)
+		if err != nil {
+			return nil, fmt.Errorf("arrow function return type: %w", err)
+		}
+	}
+	body, err := b.ToTypescriptNode(af.Body)
+	if err != nil {
+		return nil, fmt.Errorf("arrow function body: %w", err)
+	}
+	res, err := afF(goja.Undefined(), b.vm.NewArray(params...), returnType, body)
+	if err != nil {
+		return nil, xerrors.Errorf("call arrowFunction: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// TypeQuery builds `typeof <name>` as a TypeNode.
+func (b *Bindings) TypeQuery(tq *TypeQuery) (*goja.Object, error) {
+	tqF, err := b.f("typeQuery")
+	if err != nil {
+		return nil, err
+	}
+	res, err := tqF(goja.Undefined(), b.vm.ToValue(tq.Name))
+	if err != nil {
+		return nil, xerrors.Errorf("call typeQuery: %w", err)
 	}
 	return res.ToObject(b.vm), nil
 }

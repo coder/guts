@@ -327,6 +327,89 @@ export function importDeclaration(
   );
 }
 
+// identifierExpression builds a value-position identifier reference such as
+// `z` or `BaseSchema`. The same factory call is also valid in type position;
+// it is named here for the value case to distinguish it from the existing
+// `identifier` helper that is reused inside other declaration wrappers.
+export function identifierExpression(name: string): ts.Identifier {
+  return ts.factory.createIdentifier(name);
+}
+
+// propertyAccessExpression builds `expression.name`. Use with
+// callExpression to chain method names like `z.string()`.
+export function propertyAccessExpression(
+  expression: ts.Expression,
+  name: string,
+): ts.PropertyAccessExpression {
+  return ts.factory.createPropertyAccessExpression(expression, name);
+}
+
+// callExpression builds `expression(args)`. Type arguments are not yet
+// modeled; pass them as generics via reference when needed.
+export function callExpression(
+  expression: ts.Expression,
+  args: ts.Expression[],
+): ts.CallExpression {
+  return ts.factory.createCallExpression(expression, undefined, args);
+}
+
+// objectLiteralExpression builds `{ k: v, ... }`. The multiLine flag is set
+// so the printer puts each property on its own line, matching the readable
+// shape humans tend to write.
+export function objectLiteralExpression(
+  properties: ts.ObjectLiteralElementLike[],
+): ts.ObjectLiteralExpression {
+  return ts.factory.createObjectLiteralExpression(properties, true);
+}
+
+// propertyAssignment builds `name: initializer` for use inside
+// objectLiteralExpression.
+export function propertyAssignment(
+  name: string,
+  initializer: ts.Expression,
+): ts.PropertyAssignment {
+  return ts.factory.createPropertyAssignment(name, initializer);
+}
+
+// parameter builds a single `name: type` parameter for arrowFunction. Pass
+// `type` as undefined to omit the annotation.
+export function parameter(
+  name: string,
+  type: ts.TypeNode | undefined,
+): ts.ParameterDeclaration {
+  return ts.factory.createParameterDeclaration(
+    undefined,
+    undefined,
+    name,
+    undefined,
+    type,
+    undefined,
+  );
+}
+
+// arrowFunction builds `(parameters): returnType => body`. Pass
+// `returnType` as undefined to omit the annotation.
+export function arrowFunction(
+  parameters: ts.ParameterDeclaration[],
+  returnType: ts.TypeNode | undefined,
+  body: ts.Expression,
+): ts.ArrowFunction {
+  return ts.factory.createArrowFunction(
+    undefined,
+    undefined,
+    parameters,
+    returnType,
+    ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+    body,
+  );
+}
+
+// typeQuery builds `typeof name`, used as a TypeNode (e.g. as a generic
+// argument such as `z.infer<typeof FooSchema>`).
+export function typeQuery(name: string): ts.TypeQueryNode {
+  return ts.factory.createTypeQueryNode(identifier(name));
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -359,5 +442,13 @@ module.exports = {
   enumMember: enumMember,
   importDeclaration: importDeclaration,
   importSpecifier: importSpecifier,
+  identifierExpression: identifierExpression,
+  propertyAccessExpression: propertyAccessExpression,
+  callExpression: callExpression,
+  objectLiteralExpression: objectLiteralExpression,
+  propertyAssignment: propertyAssignment,
+  parameter: parameter,
+  arrowFunction: arrowFunction,
+  typeQuery: typeQuery,
 };
 

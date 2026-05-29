@@ -197,3 +197,86 @@ type TypeIntersection struct {
 
 func (*TypeIntersection) isNode()           {}
 func (*TypeIntersection) isExpressionType() {}
+
+// IdentifierExpression is a value-level identifier reference such as the
+// `z` in `z.string()` or `BaseSchema` in `BaseSchema.extend({...})`. Unlike
+// ReferenceType, which emits a TypeScript type reference, this emits in
+// expression position.
+type IdentifierExpression struct {
+	Name string
+}
+
+func (*IdentifierExpression) isNode()           {}
+func (*IdentifierExpression) isExpressionType() {}
+
+// PropertyAccessExpression is `<expression>.<name>`, used to chain method
+// names or member references such as `z.string` or `BaseSchema.extend`.
+type PropertyAccessExpression struct {
+	Expression ExpressionType
+	Name       string
+}
+
+func (*PropertyAccessExpression) isNode()           {}
+func (*PropertyAccessExpression) isExpressionType() {}
+
+// CallExpression is `<expression>(args...)`. It composes with
+// PropertyAccessExpression to build chained calls like
+// `z.string().optional()`.
+type CallExpression struct {
+	Expression ExpressionType
+	Arguments  []ExpressionType
+}
+
+func (*CallExpression) isNode()           {}
+func (*CallExpression) isExpressionType() {}
+
+// ObjectLiteralExpression is `{ k: v, ... }` in expression position. It is
+// distinct from TypeLiteralNode, which emits a TypeScript object type.
+type ObjectLiteralExpression struct {
+	Properties []*PropertyAssignment
+}
+
+func (*ObjectLiteralExpression) isNode()           {}
+func (*ObjectLiteralExpression) isExpressionType() {}
+
+// PropertyAssignment is `<name>: <initializer>` inside an
+// ObjectLiteralExpression. It is a node but not an ExpressionType or a
+// DeclarationType because it only appears as a child of
+// ObjectLiteralExpression.
+type PropertyAssignment struct {
+	Name        string
+	Initializer ExpressionType
+}
+
+func (*PropertyAssignment) isNode() {}
+
+// Parameter is a single parameter in an ArrowFunction signature. Name is
+// required; Type may be nil to omit the annotation.
+type Parameter struct {
+	Name string
+	Type ExpressionType
+}
+
+func (*Parameter) isNode() {}
+
+// ArrowFunction is `(parameters): returnType => body`. ReturnType may be
+// nil to omit the annotation. Body is currently required to be a single
+// expression; statement bodies are not yet modeled.
+type ArrowFunction struct {
+	Parameters []*Parameter
+	ReturnType ExpressionType
+	Body       ExpressionType
+}
+
+func (*ArrowFunction) isNode()           {}
+func (*ArrowFunction) isExpressionType() {}
+
+// TypeQuery is `typeof <name>`. It appears in type position, typically as
+// a generic argument such as the `typeof FooSchema` inside
+// `z.infer<typeof FooSchema>`.
+type TypeQuery struct {
+	Name string
+}
+
+func (*TypeQuery) isNode()           {}
+func (*TypeQuery) isExpressionType() {}
