@@ -32,15 +32,16 @@ func kw(k bindings.LiteralKeyword) *bindings.LiteralKeyword {
 	return &k
 }
 
-// zMethodCall builds the expression `z.<name>(<args>...)`, the most common
-// shape these tests exercise. Tests live or die on whether method-chained
-// calls serialize correctly, so a helper keeps the test bodies focused on
-// the case under test.
-func zMethodCall(name string, args ...bindings.ExpressionType) *bindings.CallExpression {
+// methodCall builds the expression `<receiver>.<method>(<args>...)`. This
+// is the most common shape these tests exercise, since the new bindings
+// were motivated by chained-call patterns like `z.string().optional()`.
+// Tests live or die on whether method-chained calls serialize correctly,
+// so a helper keeps the test bodies focused on the case under test.
+func methodCall(receiver, method string, args ...bindings.ExpressionType) *bindings.CallExpression {
 	return &bindings.CallExpression{
 		Expression: &bindings.PropertyAccessExpression{
-			Expression: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "z"}},
-			Name:       name,
+			Expression: &bindings.IdentifierExpression{Name: bindings.Identifier{Name: receiver}},
+			Name:       method,
 		},
 		Arguments: args,
 	}
@@ -85,20 +86,20 @@ func TestCallExpression(t *testing.T) {
 
 	t.Run("no args", func(t *testing.T) {
 		t.Parallel()
-		got := roundTrip(t, zMethodCall("string"))
+		got := roundTrip(t, methodCall("z", "string"))
 		require.Equal(t, "z.string()", got)
 	})
 
 	t.Run("with arg", func(t *testing.T) {
 		t.Parallel()
-		got := roundTrip(t, zMethodCall("literal", &bindings.LiteralType{Value: int64(42)}))
+		got := roundTrip(t, methodCall("z", "literal", &bindings.LiteralType{Value: int64(42)}))
 		require.Equal(t, "z.literal(42)", got)
 	})
 
 	t.Run("chained", func(t *testing.T) {
 		t.Parallel()
 		// z.string().optional()
-		inner := zMethodCall("string")
+		inner := methodCall("z", "string")
 		got := roundTrip(t, &bindings.CallExpression{
 			Expression: &bindings.PropertyAccessExpression{
 				Expression: inner,
@@ -111,7 +112,7 @@ func TestCallExpression(t *testing.T) {
 	t.Run("nested", func(t *testing.T) {
 		t.Parallel()
 		// z.array(z.string())
-		got := roundTrip(t, zMethodCall("array", zMethodCall("string")))
+		got := roundTrip(t, methodCall("z", "array", methodCall("z", "string")))
 		require.Equal(t, "z.array(z.string())", got)
 	})
 }
@@ -129,7 +130,7 @@ func TestObjectLiteralExpression(t *testing.T) {
 		t.Parallel()
 		got := roundTrip(t, &bindings.ObjectLiteralExpression{
 			Properties: []*bindings.PropertyAssignment{
-				{Name: "id", Initializer: zMethodCall("string")},
+				{Name: "id", Initializer: methodCall("z", "string")},
 			},
 		})
 		require.Contains(t, got, "id: z.string()")
@@ -141,9 +142,9 @@ func TestObjectLiteralExpression(t *testing.T) {
 		t.Parallel()
 		got := roundTrip(t, &bindings.ObjectLiteralExpression{
 			Properties: []*bindings.PropertyAssignment{
-				{Name: "id", Initializer: zMethodCall("string")},
-				{Name: "age", Initializer: zMethodCall("number")},
-				{Name: "active", Initializer: zMethodCall("boolean")},
+				{Name: "id", Initializer: methodCall("z", "string")},
+				{Name: "age", Initializer: methodCall("z", "number")},
+				{Name: "active", Initializer: methodCall("z", "boolean")},
 			},
 		})
 		idIdx := strings.Index(got, "id:")
@@ -164,7 +165,7 @@ func TestPropertyAssignment(t *testing.T) {
 	t.Parallel()
 	got := roundTrip(t, &bindings.PropertyAssignment{
 		Name:        "title",
-		Initializer: zMethodCall("string"),
+		Initializer: methodCall("z", "string"),
 	})
 	require.Equal(t, "title: z.string()", got)
 }
@@ -203,14 +204,17 @@ func TestArrowFunction(t *testing.T) {
 	})
 }
 
-// TestTypeQuery exercises the `typeof <name>` node both standalone and as a
-// generic argument inside a ReferenceType (its primary use site).
+// TestTypeQuery exercises the `typeof <name>` node standalone, as a generic
+// argument (its primary use site), and with a non-empty Identifier.Prefix.
+// The prefix subcase pins the parallel with IdentifierExpression: a
+// TypeQuery and an IdentifierExpression for the same prefixed Identifier
+// must emit names that line up.
 func TestTypeQuery(t *testing.T) {
 	t.Parallel()
 
 	t.Run("standalone", func(t *testing.T) {
 		t.Parallel()
-		got := roundTrip(t, &bindings.TypeQuery{Name: "FooSchema"})
+		got := roundTrip(t, &bindings.TypeQuery{Name: bindings.Identifier{Name: "FooSchema"}})
 		require.Equal(t, "typeof FooSchema", got)
 	})
 
@@ -219,9 +223,17 @@ func TestTypeQuery(t *testing.T) {
 		// Foo<typeof FooSchema>
 		got := roundTrip(t, bindings.Reference(
 			bindings.Identifier{Name: "Foo"},
-			&bindings.TypeQuery{Name: "FooSchema"},
+			&bindings.TypeQuery{Name: bindings.Identifier{Name: "FooSchema"}},
 		))
 		require.Equal(t, "Foo<typeof FooSchema>", got)
+	})
+
+	t.Run("prefix is applied", func(t *testing.T) {
+		t.Parallel()
+		got := roundTrip(t, &bindings.TypeQuery{
+			Name: bindings.Identifier{Name: "Schema", Prefix: "External"},
+		})
+		require.Equal(t, "typeof ExternalSchema", got)
 	})
 }
 
@@ -232,14 +244,14 @@ func TestComposeZodObject(t *testing.T) {
 	t.Parallel()
 
 	// z.object({ id: z.string(), name: z.string().optional() })
-	expr := zMethodCall("object", &bindings.ObjectLiteralExpression{
+	expr := methodCall("z", "object", &bindings.ObjectLiteralExpression{
 		Properties: []*bindings.PropertyAssignment{
-			{Name: "id", Initializer: zMethodCall("string")},
+			{Name: "id", Initializer: methodCall("z", "string")},
 			{
 				Name: "name",
 				Initializer: &bindings.CallExpression{
 					Expression: &bindings.PropertyAccessExpression{
-						Expression: zMethodCall("string"),
+						Expression: methodCall("z", "string"),
 						Name:       "optional",
 					},
 				},
@@ -258,7 +270,7 @@ func TestComposeZodObject(t *testing.T) {
 func TestComposeZodLazyRef(t *testing.T) {
 	t.Parallel()
 
-	expr := zMethodCall("lazy", &bindings.ArrowFunction{
+	expr := methodCall("z", "lazy", &bindings.ArrowFunction{
 		ReturnType: bindings.Reference(bindings.Identifier{Name: "z.ZodType"}),
 		Body:       &bindings.IdentifierExpression{Name: bindings.Identifier{Name: "TicketSchema"}},
 	})

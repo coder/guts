@@ -242,6 +242,10 @@ func (*CallExpression) isExpressionType() {}
 
 // ObjectLiteralExpression is `{ k: v, ... }` in expression position. It is
 // distinct from TypeLiteralNode, which emits a TypeScript object type.
+//
+// Only the PropertyAssignment form is modeled. ShorthandPropertyAssignment
+// (`{ x }`), SpreadAssignment (`{ ...rest }`), MethodDeclaration, and
+// accessor properties are not yet supported; add them if you need them.
 type ObjectLiteralExpression struct {
 	Properties []*PropertyAssignment
 }
@@ -284,8 +288,13 @@ func (*ArrowFunction) isExpressionType() {}
 // TypeQuery is `typeof <name>`. It appears in type position, typically as
 // a generic argument such as the `typeof FooSchema` inside
 // `z.infer<typeof FooSchema>`.
+//
+// Name is an Identifier so cross-package prefixing flows through .Ref(),
+// matching the rest of the AST. Without this, a TypeQuery for a prefixed
+// declaration would emit `typeof Foo` while the matching value-position
+// IdentifierExpression emits `ExternalFoo`, and the two would not line up.
 type TypeQuery struct {
-	Name string
+	Name Identifier
 }
 
 func (*TypeQuery) isNode()           {}

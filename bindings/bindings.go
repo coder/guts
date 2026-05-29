@@ -1034,7 +1034,7 @@ func (b *Bindings) TypeQuery(tq *TypeQuery) (*goja.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := tqF(goja.Undefined(), b.vm.ToValue(tq.Name))
+	res, err := tqF(goja.Undefined(), b.vm.ToValue(tq.Name.Ref()))
 	if err != nil {
 		return nil, xerrors.Errorf("call typeQuery: %w", err)
 	}
