@@ -289,6 +289,44 @@ export function intersectionType(types:TypeNode[]): ts.IntersectionTypeNode {
   return ts.factory.createIntersectionTypeNode(types);
 }
 
+// importSpecifier builds a single named import entry. propertyName is the
+// original exported name; name is the local binding. When the two are the
+// same the alias is dropped at print time so the output is the short form.
+export function importSpecifier(
+  isTypeOnly: boolean,
+  propertyName: string | undefined,
+  name: string,
+): ts.ImportSpecifier {
+  return ts.factory.createImportSpecifier(
+    isTypeOnly,
+    propertyName ? identifier(propertyName) : undefined,
+    identifier(name),
+  );
+}
+
+// importDeclaration builds a named-imports declaration:
+//   import { a, b as c } from "module"
+//   import type { a, b as c } from "module"
+// When namedImports is undefined the import emits as a side-effect import
+// with no import clause: `import "module"`.
+export function importDeclaration(
+  isTypeOnly: boolean,
+  moduleSpecifier: string,
+  namedImports: ts.ImportSpecifier[] | undefined,
+): ts.ImportDeclaration {
+  return ts.factory.createImportDeclaration(
+    undefined,
+    namedImports
+      ? ts.factory.createImportClause(
+          isTypeOnly,
+          undefined,
+          ts.factory.createNamedImports(namedImports),
+        )
+      : undefined,
+    ts.factory.createStringLiteral(moduleSpecifier),
+  );
+}
+
 module.exports = {
   modifier: modifier,
   identifier: identifier,
@@ -319,4 +357,7 @@ module.exports = {
   intersectionType: intersectionType,
   enumDeclaration: enumDeclaration,
   enumMember: enumMember,
+  importDeclaration: importDeclaration,
+  importSpecifier: importSpecifier,
 };
+
