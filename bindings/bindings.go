@@ -82,6 +82,8 @@ func (b *Bindings) ToTypescriptDeclarationNode(ety DeclarationType) (*goja.Objec
 		siObj, err = b.VariableStatement(ety)
 	case *Enum:
 		siObj, err = b.EnumDeclaration(ety)
+	case *ImportDeclaration:
+		siObj, err = b.ImportDeclaration(ety)
 	default:
 		return nil, xerrors.Errorf("unsupported type for declaration type: %T", ety)
 	}
@@ -797,4 +799,61 @@ func convertDeprecation(txt string) string {
 	}
 
 	return txt
+}
+
+// ImportSpecifier builds the goja ImportSpecifier for a single named import.
+//
+// When Alias is empty, this emits `Name`. When Alias is set, this emits
+// `Name as Alias` by passing Name as the TypeScript propertyName and Alias
+// as the local binding name.
+func (b *Bindings) ImportSpecifier(spec *ImportSpecifier) (*goja.Object, error) {
+	specF, err := b.f("importSpecifier")
+	if err != nil {
+		return nil, err
+	}
+
+	var propertyName goja.Value = goja.Undefined()
+	localName := spec.Name
+	if spec.Alias != "" {
+		propertyName = b.vm.ToValue(spec.Name)
+		localName = spec.Alias
+	}
+
+	res, err := specF(goja.Undefined(),
+		b.vm.ToValue(spec.IsTypeOnly),
+		propertyName,
+		b.vm.ToValue(localName),
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("call importSpecifier: %w", err)
+	}
+	return res.ToObject(b.vm), nil
+}
+
+// ImportDeclaration builds the goja ImportDeclaration for a top-level
+// `import { ... } from "module"` statement.
+func (b *Bindings) ImportDeclaration(decl *ImportDeclaration) (*goja.Object, error) {
+	declF, err := b.f("importDeclaration")
+	if err != nil {
+		return nil, err
+	}
+
+	specifiers := make([]interface{}, 0, len(decl.Named))
+	for _, n := range decl.Named {
+		obj, err := b.ImportSpecifier(n)
+		if err != nil {
+			return nil, fmt.Errorf("import specifier %q: %w", n.Name, err)
+		}
+		specifiers = append(specifiers, obj)
+	}
+
+	res, err := declF(goja.Undefined(),
+		b.vm.ToValue(decl.IsTypeOnly),
+		b.vm.ToValue(decl.Module),
+		b.vm.NewArray(specifiers...),
+	)
+	if err != nil {
+		return nil, xerrors.Errorf("call importDeclaration: %w", err)
+	}
+	return res.ToObject(b.vm), nil
 }

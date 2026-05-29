@@ -121,3 +121,42 @@ type Enum struct {
 
 func (*Enum) isNode()            {}
 func (*Enum) isDeclarationType() {}
+
+// ImportDeclaration is a top-level ECMAScript import statement.
+//
+//	import { z } from "zod"
+//	import { Foo as Bar } from "./schemas"
+//	import type { Baz } from "./types"
+//
+// Only the named-imports form is modeled. Default imports and namespace
+// imports (`import * as ns from "x"`) are not yet supported; add them if
+// you need them.
+type ImportDeclaration struct {
+	// Module is the module specifier (the right-hand side of `from`).
+	Module string
+	// Named is the list of imported names. Order is preserved in the
+	// generated output.
+	Named []*ImportSpecifier
+	// IsTypeOnly emits `import type { ... }` instead of `import { ... }`.
+	IsTypeOnly bool
+	SupportComments
+	Source
+}
+
+func (*ImportDeclaration) isNode()            {}
+func (*ImportDeclaration) isDeclarationType() {}
+
+// ImportSpecifier is a single named import entry inside the braces of an
+// `import { ... }` clause.
+//
+//	Name="foo", Alias=""     ->  foo
+//	Name="foo", Alias="bar"  ->  foo as bar
+//	IsTypeOnly=true          ->  type foo, type foo as bar
+type ImportSpecifier struct {
+	Name       string
+	Alias      string
+	IsTypeOnly bool
+}
+
+func (*ImportSpecifier) isNode() {}
+
