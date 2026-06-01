@@ -30,6 +30,16 @@ func runZod(t *testing.T, ts *guts.Typescript) string {
 	return out
 }
 
+// runZodInOrder runs AsSchemas and then serializes with
+// SortByDependencies so tests can assert ordering as well as content.
+func runZodInOrder(t *testing.T, ts *guts.Typescript) string {
+	t.Helper()
+	ts.ApplyMutations(zod.AsSchemas)
+	out, err := ts.SerializeInOrder(zod.SortByDependencies)
+	require.NoError(t, err)
+	return out
+}
+
 func ident(name string) bindings.Identifier { return bindings.Identifier{Name: name} }
 
 func kw(k bindings.LiteralKeyword) *bindings.LiteralKeyword { return &k }
@@ -331,4 +341,208 @@ func TestPrefixedReference(t *testing.T) {
 	require.Contains(t, out, "item: ExternalItemSchema")
 	require.Contains(t, out, "type ExternalItem = z.infer<typeof ExternalItemSchema>",
 		strings.TrimSpace(out))
+}
+
+// TestGenericTypeParameterFallsBackToUnknown checks that a reference to a
+// generic type parameter on the surrounding declaration emits z.unknown().
+// Zod has no runtime equivalent for an unbound type parameter, so the
+// fallback is the most useful schema that still type-checks.
+func TestGenericTypeParameterFallsBackToUnknown(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	require.NoError(t, ts.SetNode("IDPSyncMapping", &bindings.Interface{
+		Name: ident("IDPSyncMapping"),
+		Parameters: []*bindings.TypeParameter{
+			{Name: ident("ResourceIdType")},
+		},
+		Fields: []*bindings.PropertySignature{
+			{Name: "id", Type: bindings.Reference(ident("ResourceIdType"))},
+			{Name: "name", Type: kw(bindings.KeywordString)},
+		},
+	}))
+
+	out := runZod(t, ts)
+	require.Contains(t, out, "id: z.unknown()",
+		"reference to type parameter ResourceIdType must fall back to z.unknown()")
+	require.NotContains(t, out, "ResourceIdTypeSchema",
+		"a non-existent ResourceIdTypeSchema reference must not be emitted")
+	require.Contains(t, out, "name: z.string()")
+}
+
+// TestGenericTypeParameterOnAlias is the alias-side equivalent of
+// TestGenericTypeParameterFallsBackToUnknown.
+func TestGenericTypeParameterOnAlias(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	require.NoError(t, ts.SetNode("Wrapper", &bindings.Alias{
+		Name: ident("Wrapper"),
+		Parameters: []*bindings.TypeParameter{
+			{Name: ident("T")},
+		},
+		Type: bindings.Reference(ident("T")),
+	}))
+
+	out := runZod(t, ts)
+	require.Contains(t, out, "const WrapperSchema = z.unknown()")
+	require.NotContains(t, out, "TSchema")
+}
+
+// TestSortByDependenciesForwardReference pins the ordering guarantee:
+// a schema that references another schema must be emitted after it,
+// regardless of alphabetical order.
+func TestSortByDependenciesForwardReference(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	// Define Foo first; it references Bar via heritage. Alphabetically
+	// FooSchema would precede BarSchema, but topologically it must
+	// follow it.
+	require.NoError(t, ts.SetNode("Foo", &bindings.Interface{
+		Name: ident("Foo"),
+		Heritage: []*bindings.HeritageClause{
+			{Args: []bindings.ExpressionType{bindings.Reference(ident("Bar"))}},
+		},
+		Fields: []*bindings.PropertySignature{
+			{Name: "x", Type: kw(bindings.KeywordString)},
+		},
+	}))
+	require.NoError(t, ts.SetNode("Bar", &bindings.Interface{
+		Name: ident("Bar"),
+		Fields: []*bindings.PropertySignature{
+			{Name: "y", Type: kw(bindings.KeywordString)},
+		},
+	}))
+
+	out := runZodInOrder(t, ts)
+	barIdx := strings.Index(out, "const BarSchema")
+	fooIdx := strings.Index(out, "const FooSchema")
+	require.NotEqual(t, -1, barIdx, "BarSchema must be emitted")
+	require.NotEqual(t, -1, fooIdx, "FooSchema must be emitted")
+	require.Less(t, barIdx, fooIdx,
+		"BarSchema must precede FooSchema because Foo extends Bar")
+}
+
+// TestSortByDependenciesAlphabeticalTiebreak verifies that independent
+// schemas are emitted alphabetically. This keeps output deterministic
+// when there are no dependency edges between two schemas.
+func TestSortByDependenciesAlphabeticalTiebreak(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	require.NoError(t, ts.SetNode("Beta", &bindings.Interface{
+		Name: ident("Beta"),
+		Fields: []*bindings.PropertySignature{
+			{Name: "x", Type: kw(bindings.KeywordString)},
+		},
+	}))
+	require.NoError(t, ts.SetNode("Alpha", &bindings.Interface{
+		Name: ident("Alpha"),
+		Fields: []*bindings.PropertySignature{
+			{Name: "x", Type: kw(bindings.KeywordString)},
+		},
+	}))
+
+	out := runZodInOrder(t, ts)
+	alphaIdx := strings.Index(out, "const AlphaSchema")
+	betaIdx := strings.Index(out, "const BetaSchema")
+	require.NotEqual(t, -1, alphaIdx)
+	require.NotEqual(t, -1, betaIdx)
+	require.Less(t, alphaIdx, betaIdx,
+		"independent schemas must be emitted alphabetically")
+}
+
+// TestSortByDependenciesPairsAlias verifies that each schema's inferred
+// type alias is emitted immediately after the schema itself, so the
+// pair stays visually grouped in the output.
+func TestSortByDependenciesPairsAlias(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	require.NoError(t, ts.SetNode("Foo", &bindings.Interface{
+		Name: ident("Foo"),
+		Fields: []*bindings.PropertySignature{
+			{Name: "x", Type: kw(bindings.KeywordString)},
+		},
+	}))
+
+	out := runZodInOrder(t, ts)
+	schemaIdx := strings.Index(out, "const FooSchema")
+	aliasIdx := strings.Index(out, "type Foo = z.infer")
+	require.NotEqual(t, -1, schemaIdx)
+	require.NotEqual(t, -1, aliasIdx)
+	require.Less(t, schemaIdx, aliasIdx,
+		"alias must follow the schema it infers from")
+	// And no other declaration may sit between the pair. Start scanning
+	// after the schema's own `const ` so we do not match itself.
+	between := out[schemaIdx+len("const "):aliasIdx]
+	require.NotContains(t, between, "const ", "schema and its alias must be adjacent")
+}
+
+// TestSortByDependenciesLazyBreaksCycle exercises the cross-type cycle
+// path. Two schemas that reference each other through z.lazy must both
+// be emitted; the lazy reference removes the hard dependency edge.
+//
+// This test simulates what a user would do to break a true cycle: wrap
+// each cross-reference in z.lazy. The deps walker skips ArrowFunction
+// bodies, so neither schema depends on the other, and Kahn's algorithm
+// emits both in alphabetical order.
+func TestSortByDependenciesLazyBreaksCycle(t *testing.T) {
+	t.Parallel()
+
+	ts := newTS(t)
+	// Hand-build the resulting schemas so we can be sure both
+	// references are inside ArrowFunctions.
+	lazyRef := func(target string) bindings.ExpressionType {
+		return &bindings.CallExpression{
+			Expression: &bindings.PropertyAccessExpression{
+				Expression: &bindings.IdentifierExpression{Name: ident("z")},
+				Name:       "lazy",
+			},
+			Arguments: []bindings.ExpressionType{
+				&bindings.ArrowFunction{
+					Body: &bindings.IdentifierExpression{Name: ident(target)},
+				},
+			},
+		}
+	}
+	makeSchema := func(name string, other string) *bindings.VariableStatement {
+		return &bindings.VariableStatement{
+			Declarations: &bindings.VariableDeclarationList{
+				Flags: bindings.NodeFlagsConstant,
+				Declarations: []*bindings.VariableDeclaration{
+					{
+						Name: ident(name),
+						Initializer: &bindings.CallExpression{
+							Expression: &bindings.PropertyAccessExpression{
+								Expression: &bindings.IdentifierExpression{Name: ident("z")},
+								Name:       "object",
+							},
+							Arguments: []bindings.ExpressionType{
+								&bindings.ObjectLiteralExpression{
+									Properties: []*bindings.PropertyAssignment{
+										{Name: "ref", Initializer: lazyRef(other)},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	require.NoError(t, ts.SetNode("ASchema", makeSchema("ASchema", "BSchema")))
+	require.NoError(t, ts.SetNode("BSchema", makeSchema("BSchema", "ASchema")))
+
+	out, err := ts.SerializeInOrder(zod.SortByDependencies)
+	require.NoError(t, err)
+	aIdx := strings.Index(out, "const ASchema")
+	bIdx := strings.Index(out, "const BSchema")
+	require.NotEqual(t, -1, aIdx, "ASchema must be emitted")
+	require.NotEqual(t, -1, bIdx, "BSchema must be emitted")
+	// Lazy references should not count as dependencies, so alphabetical
+	// order is the natural fallback.
+	require.Less(t, aIdx, bIdx,
+		"lazy-only references must not create a hard dependency")
 }

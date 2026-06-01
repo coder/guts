@@ -48,7 +48,7 @@ func TestAsSchemasEndToEnd(t *testing.T) {
 		config.ExportTypes,
 	)
 
-	output, err := ts.Serialize()
+	output, err := ts.SerializeInOrder(zod.SortByDependencies)
 	require.NoError(t, err)
 
 	golden := filepath.Join("..", "testdata", "zod", "golden.ts")

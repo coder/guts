@@ -2,15 +2,17 @@
 
 import { z } from "zod";
 
-export type Base = z.infer<typeof BaseSchema>;
-
 export const BaseSchema = z.object({
     id: z.string(),
     created_at: z.string(),
     updated_at: z.string()
 });
 
-export type CreateTicketRequest = z.infer<typeof CreateTicketRequestSchema>;
+export type Base = z.infer<typeof BaseSchema>;
+
+export const PrioritySchema = z.union([z.literal(2), z.literal(0), z.literal(1)]);
+
+export type Priority = z.infer<typeof PrioritySchema>;
 
 export const CreateTicketRequestSchema = z.object({
     title: z.string(),
@@ -19,15 +21,11 @@ export const CreateTicketRequestSchema = z.object({
     tags: z.array(z.string()).optional()
 });
 
-export type Priority = z.infer<typeof PrioritySchema>;
-
-export const PrioritySchema = z.union([z.literal(2), z.literal(0), z.literal(1)]);
-
-export type Status = z.infer<typeof StatusSchema>;
+export type CreateTicketRequest = z.infer<typeof CreateTicketRequestSchema>;
 
 export const StatusSchema = z.enum(["active", "closed", "pending"]);
 
-export type Ticket = z.infer<typeof TicketSchema>;
+export type Status = z.infer<typeof StatusSchema>;
 
 export const TicketSchema = BaseSchema.extend({
     title: z.string(),
@@ -39,4 +37,6 @@ export const TicketSchema = BaseSchema.extend({
     metadata: z.record(z.string(), z.string()).nullable(),
     children: z.array(z.lazy((): z.ZodType => TicketSchema))
 });
+
+export type Ticket = z.infer<typeof TicketSchema>;
 

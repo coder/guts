@@ -10,6 +10,24 @@
 // It also injects `import { z } from "zod"` so the generated file is
 // self-contained.
 //
+// # Ordering
+//
+// Zod schemas must be declared before any other schema references them
+// because `const` bindings are not hoisted. AsSchemas does not reorder
+// nodes itself; the caller is expected to pass SortByDependencies to
+// Typescript.SerializeInOrder:
+//
+//	ts.ApplyMutations(zod.AsSchemas)
+//	out, err := ts.SerializeInOrder(zod.SortByDependencies)
+//
+// SortByDependencies performs a Kahn's-algorithm topological sort over
+// the schema VariableStatements, then pairs each schema with its inferred
+// type alias. Self-references inside the same declaration are already
+// broken by z.lazy in convertInterface and convertAlias, so the sort
+// treats arrow-function bodies as non-dependencies.
+//
+// # Pipeline
+//
 // AsSchemas composes with the rest of the config mutations. The intended
 // pipeline is:
 //
@@ -25,8 +43,12 @@
 package zod
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/coder/guts"
 	"github.com/coder/guts/bindings"
+	"github.com/coder/guts/bindings/walk"
 )
 
 // AsSchemas is the mutation entry point. It walks ts.typescriptNodes and
@@ -59,12 +81,16 @@ func AsSchemas(ts *guts.Typescript) {
 	}
 }
 
+// schemaSuffix is the suffix appended to a type name to produce its
+// schema binding. `Foo` becomes `FooSchema`.
+const schemaSuffix = "Schema"
+
 // schemaIdent returns the Identifier for the schema binding paired with a
 // type. `Foo` becomes `FooSchema`, with Package and Prefix preserved so
 // cross-package disambiguation flows through .Ref() to the emitted name.
 func schemaIdent(typeName bindings.Identifier) bindings.Identifier {
 	return bindings.Identifier{
-		Name:    typeName.Name + "Schema",
+		Name:    typeName.Name + schemaSuffix,
 		Package: typeName.Package,
 		Prefix:  typeName.Prefix,
 	}
@@ -124,14 +150,35 @@ func chain(expr bindings.ExpressionType, method string) *bindings.CallExpression
 	}
 }
 
+// converter holds the per-declaration conversion state. Methods on
+// converter recurse through a TypeScript type expression and emit the
+// equivalent Zod expression with access to the surrounding type's name
+// (so self-references can become z.lazy) and to its generic type
+// parameters (so a reference to a type parameter becomes z.unknown).
+type converter struct {
+	self       bindings.Identifier
+	typeParams map[string]bool
+}
+
+// newConverter builds a converter for one declaration. params may be nil
+// when the declaration has no generic parameters.
+func newConverter(self bindings.Identifier, params []*bindings.TypeParameter) *converter {
+	tp := make(map[string]bool, len(params))
+	for _, p := range params {
+		tp[p.Name.Ref()] = true
+	}
+	return &converter{self: self, typeParams: tp}
+}
+
 // convertInterface rewrites an Interface into a schema VariableStatement
 // plus an inferred type alias. The original key in ts.typescriptNodes is
 // reused for the alias; the schema is added under <key>Schema.
 func convertInterface(ts *guts.Typescript, key string, iface *bindings.Interface) {
 	typeName := iface.Name
 	schemaName := schemaIdent(typeName)
+	c := newConverter(typeName, iface.Parameters)
 
-	objLit := buildFieldsObject(iface.Fields, typeName)
+	objLit := c.buildFieldsObject(iface.Fields)
 
 	var initializer bindings.ExpressionType
 	if base, ok := heritageBase(iface); ok {
@@ -157,12 +204,13 @@ func convertInterface(ts *guts.Typescript, key string, iface *bindings.Interface
 func convertAlias(ts *guts.Typescript, key string, alias *bindings.Alias) {
 	typeName := alias.Name
 	schemaName := schemaIdent(typeName)
+	c := newConverter(typeName, alias.Parameters)
 
 	var initializer bindings.ExpressionType
 	if union, ok := alias.Type.(*bindings.UnionType); ok && isStringLiteralUnion(union) {
 		initializer = zMethod("enum", stringLiteralArray(union))
 	} else {
-		initializer = exprToZod(alias.Type, typeName)
+		initializer = c.exprToZod(alias.Type)
 	}
 
 	ts.ReplaceNode(key, inferAlias(typeName))
@@ -209,10 +257,10 @@ func heritageArgIdent(arg bindings.ExpressionType) (bindings.Identifier, bool) {
 
 // buildFieldsObject collects an Interface's fields into a single
 // ObjectLiteralExpression whose values are zod expressions.
-func buildFieldsObject(fields []*bindings.PropertySignature, selfName bindings.Identifier) *bindings.ObjectLiteralExpression {
+func (c *converter) buildFieldsObject(fields []*bindings.PropertySignature) *bindings.ObjectLiteralExpression {
 	props := make([]*bindings.PropertyAssignment, 0, len(fields))
 	for _, f := range fields {
-		expr := exprToZod(f.Type, selfName)
+		expr := c.exprToZod(f.Type)
 		if f.QuestionToken {
 			expr = chain(expr, "optional")
 		}
@@ -256,10 +304,9 @@ func stringLiteralArray(u *bindings.UnionType) *bindings.ArrayLiteralType {
 }
 
 // exprToZod recursively converts a TypeScript type expression into the
-// equivalent Zod schema expression. selfName is the type currently being
-// emitted; references back to it use z.lazy() to avoid
-// reference-before-declaration errors.
-func exprToZod(expr bindings.ExpressionType, selfName bindings.Identifier) bindings.ExpressionType {
+// equivalent Zod schema expression. References back to the surrounding
+// type use z.lazy() to avoid reference-before-declaration errors.
+func (c *converter) exprToZod(expr bindings.ExpressionType) bindings.ExpressionType {
 	if expr == nil {
 		return zMethod("unknown")
 	}
@@ -269,25 +316,25 @@ func exprToZod(expr bindings.ExpressionType, selfName bindings.Identifier) bindi
 	case *bindings.LiteralType:
 		return zMethod("literal", &bindings.LiteralType{Value: e.Value})
 	case *bindings.ReferenceType:
-		return referenceToZod(e, selfName)
+		return c.referenceToZod(e)
 	case *bindings.ArrayType:
-		return zMethod("array", exprToZod(e.Node, selfName))
+		return zMethod("array", c.exprToZod(e.Node))
 	case *bindings.TupleType:
 		// Tuples are emitted as arrays today. A future variant could
 		// switch on TupleType.Length to emit a true z.tuple().
-		return zMethod("array", exprToZod(e.Node, selfName))
+		return zMethod("array", c.exprToZod(e.Node))
 	case *bindings.UnionType:
-		return unionToZod(e, selfName)
+		return c.unionToZod(e)
 	case *bindings.Null:
 		return zMethod("null")
 	case *bindings.TypeLiteralNode:
-		return typeLiteralToZod(e, selfName)
+		return c.typeLiteralToZod(e)
 	case *bindings.TypeIntersection:
-		return intersectionToZod(e, selfName)
+		return c.intersectionToZod(e)
 	case *bindings.OperatorNodeType:
 		// readonly/keyof/unique wrappers do not affect the Zod schema;
 		// unwrap and emit the inner type directly.
-		return exprToZod(e.Type, selfName)
+		return c.exprToZod(e.Type)
 	default:
 		return zMethod("unknown")
 	}
@@ -313,18 +360,30 @@ func keywordToZod(kw *bindings.LiteralKeyword) bindings.ExpressionType {
 	}
 }
 
-// referenceToZod converts a type reference to a Zod expression. Bare
-// references emit the paired `<Name>Schema` identifier. The Record
-// generic becomes `z.record(K, V)`. Other utility-type generics (Omit,
-// Pick, Partial, Required) are not yet modeled and fall back to
-// z.unknown().
-func referenceToZod(ref *bindings.ReferenceType, selfName bindings.Identifier) bindings.ExpressionType {
+// referenceToZod converts a type reference to a Zod expression.
+//
+// Resolution order:
+//
+//  1. References to a generic type parameter on the surrounding
+//     declaration fall back to z.unknown(). Zod has no runtime
+//     equivalent for an unbound type parameter.
+//  2. Record<K, V> becomes z.record(K, V).
+//  3. Other utility-type generics (Omit, Pick, Partial, Required) are not
+//     yet modeled and fall back to z.unknown().
+//  4. A reference to the surrounding declaration emits z.lazy to break
+//     the value-position cycle.
+//  5. Anything else emits the paired `<Name>Schema` identifier.
+func (c *converter) referenceToZod(ref *bindings.ReferenceType) bindings.ExpressionType {
 	name := ref.Name.Ref()
+
+	if c.typeParams[name] {
+		return zMethod("unknown")
+	}
 
 	if name == "Record" && len(ref.Arguments) == 2 {
 		return zMethod("record",
-			exprToZod(ref.Arguments[0], selfName),
-			exprToZod(ref.Arguments[1], selfName),
+			c.exprToZod(ref.Arguments[0]),
+			c.exprToZod(ref.Arguments[1]),
 		)
 	}
 	switch name {
@@ -332,7 +391,7 @@ func referenceToZod(ref *bindings.ReferenceType, selfName bindings.Identifier) b
 		return zMethod("unknown")
 	}
 
-	if name == selfName.Ref() {
+	if name == c.self.Ref() {
 		// z.lazy((): z.ZodType => SelfSchema) breaks a value-position
 		// reference cycle without making the surrounding type lazy.
 		return zMethod("lazy", &bindings.ArrowFunction{
@@ -349,7 +408,7 @@ func referenceToZod(ref *bindings.ReferenceType, selfName bindings.Identifier) b
 //   - A union with a single non-null member emits just that member; the
 //     null is dropped because the surrounding optional marker covers it.
 //   - Anything else becomes z.union([...]).
-func unionToZod(u *bindings.UnionType, selfName bindings.Identifier) bindings.ExpressionType {
+func (c *converter) unionToZod(u *bindings.UnionType) bindings.ExpressionType {
 	nonNull := make([]bindings.ExpressionType, 0, len(u.Types))
 	hasNull := false
 	for _, t := range u.Types {
@@ -361,15 +420,15 @@ func unionToZod(u *bindings.UnionType, selfName bindings.Identifier) bindings.Ex
 	}
 
 	if hasNull && len(nonNull) == 1 {
-		return chain(exprToZod(nonNull[0], selfName), "nullable")
+		return chain(c.exprToZod(nonNull[0]), "nullable")
 	}
 	if !hasNull && len(nonNull) == 1 {
-		return exprToZod(nonNull[0], selfName)
+		return c.exprToZod(nonNull[0])
 	}
 
 	args := make([]bindings.ExpressionType, 0, len(u.Types))
 	for _, t := range u.Types {
-		args = append(args, exprToZod(t, selfName))
+		args = append(args, c.exprToZod(t))
 	}
 	return zMethod("union", &bindings.ArrayLiteralType{Elements: args})
 }
@@ -377,10 +436,10 @@ func unionToZod(u *bindings.UnionType, selfName bindings.Identifier) bindings.Ex
 // typeLiteralToZod inlines an object type literal as a `z.object({...})`
 // expression. Members carry through the same optional-marker handling
 // as top-level interface fields.
-func typeLiteralToZod(tl *bindings.TypeLiteralNode, selfName bindings.Identifier) bindings.ExpressionType {
+func (c *converter) typeLiteralToZod(tl *bindings.TypeLiteralNode) bindings.ExpressionType {
 	props := make([]*bindings.PropertyAssignment, 0, len(tl.Members))
 	for _, m := range tl.Members {
-		expr := exprToZod(m.Type, selfName)
+		expr := c.exprToZod(m.Type)
 		if m.QuestionToken {
 			expr = chain(expr, "optional")
 		}
@@ -395,16 +454,205 @@ func typeLiteralToZod(tl *bindings.TypeLiteralNode, selfName bindings.Identifier
 // intersectionToZod folds an intersection into a left-associative chain
 // of z.intersection(a, b) calls so the schema preserves intersection
 // semantics for arbitrary member counts.
-func intersectionToZod(it *bindings.TypeIntersection, selfName bindings.Identifier) bindings.ExpressionType {
+func (c *converter) intersectionToZod(it *bindings.TypeIntersection) bindings.ExpressionType {
 	switch len(it.Types) {
 	case 0:
 		return zMethod("unknown")
 	case 1:
-		return exprToZod(it.Types[0], selfName)
+		return c.exprToZod(it.Types[0])
 	}
-	out := exprToZod(it.Types[0], selfName)
+	out := c.exprToZod(it.Types[0])
 	for _, t := range it.Types[1:] {
-		out = zMethod("intersection", out, exprToZod(t, selfName))
+		out = zMethod("intersection", out, c.exprToZod(t))
 	}
 	return out
+}
+
+// SortByDependencies returns the nodes from a Typescript map ordered so
+// that each schema's dependencies are emitted before the schema itself.
+// It is intended to be passed to Typescript.SerializeInOrder when
+// emitting Zod output:
+//
+//	out, err := ts.SerializeInOrder(zod.SortByDependencies)
+//
+// The algorithm:
+//
+//  1. Partition the input into schema VariableStatements (keys ending in
+//     "Schema"), their paired type aliases, and other nodes.
+//  2. Build a dependency graph by scanning each schema's initializer for
+//     IdentifierExpression references that name another schema. Bodies
+//     of ArrowFunction nodes are skipped, so z.lazy(() => OtherSchema)
+//     does not create a hard dependency on OtherSchema. This lets users
+//     break cross-type cycles manually with z.lazy.
+//  3. Topologically sort using Kahn's algorithm with alphabetical
+//     tie-breaking so the output is deterministic.
+//  4. Anything left in a cycle is appended in alphabetical order. The
+//     resulting TypeScript will compile only if those nodes use z.lazy
+//     to defer their references.
+//
+// Each schema is emitted immediately followed by its paired alias so the
+// `type Foo = z.infer<typeof FooSchema>` line stays next to its schema.
+// Other nodes (anything not matching the schema-plus-alias shape) are
+// emitted first in alphabetical order so they do not interleave with
+// the sorted schemas.
+func SortByDependencies(nodes map[string]bindings.Node) []bindings.Node {
+	schemaKeys, aliasOf, otherKeys := partitionNodes(nodes)
+
+	indegree, outEdges := buildDependencyGraph(nodes, schemaKeys)
+
+	sorted := kahnSort(schemaKeys, indegree, outEdges)
+
+	out := make([]bindings.Node, 0, len(nodes))
+	for _, k := range otherKeys {
+		out = append(out, nodes[k])
+	}
+	for _, k := range sorted {
+		out = append(out, nodes[k])
+		if alias, ok := aliasOf[k]; ok {
+			out = append(out, nodes[alias])
+		}
+	}
+	return out
+}
+
+// partitionNodes splits a Typescript node map into three groups:
+//   - schemaKeys: keys of VariableStatement nodes ending in "Schema",
+//     sorted alphabetically for deterministic seed order.
+//   - aliasOf: a map from each schema key to its paired alias key
+//     (e.g. "FooSchema" -> "Foo"), present only when both exist.
+//   - otherKeys: all remaining keys, sorted alphabetically.
+//
+// Aliases that are paired with a schema are not included in otherKeys
+// because SortByDependencies emits them next to their schema.
+func partitionNodes(nodes map[string]bindings.Node) (schemaKeys []string, aliasOf map[string]string, otherKeys []string) {
+	aliasOf = map[string]string{}
+	schemaSet := map[string]bool{}
+	for k, n := range nodes {
+		if _, ok := n.(*bindings.VariableStatement); !ok {
+			continue
+		}
+		if !strings.HasSuffix(k, schemaSuffix) {
+			continue
+		}
+		schemaSet[k] = true
+		schemaKeys = append(schemaKeys, k)
+		aliasName := strings.TrimSuffix(k, schemaSuffix)
+		if _, ok := nodes[aliasName]; ok {
+			aliasOf[k] = aliasName
+		}
+	}
+	pairedAlias := map[string]bool{}
+	for _, v := range aliasOf {
+		pairedAlias[v] = true
+	}
+	for k := range nodes {
+		if schemaSet[k] || pairedAlias[k] {
+			continue
+		}
+		otherKeys = append(otherKeys, k)
+	}
+	sort.Strings(schemaKeys)
+	sort.Strings(otherKeys)
+	return schemaKeys, aliasOf, otherKeys
+}
+
+// buildDependencyGraph walks each schema's initializer and records edges
+// from dependency to dependent. outEdges[dep] lists the schemas that
+// must be emitted after dep, and indegree[schema] counts how many
+// schemas it depends on. ArrowFunction bodies are skipped so z.lazy
+// references do not contribute hard dependencies.
+func buildDependencyGraph(nodes map[string]bindings.Node, schemaKeys []string) (indegree map[string]int, outEdges map[string][]string) {
+	schemaSet := make(map[string]bool, len(schemaKeys))
+	for _, k := range schemaKeys {
+		schemaSet[k] = true
+	}
+
+	indegree = make(map[string]int, len(schemaKeys))
+	outEdges = make(map[string][]string, len(schemaKeys))
+	for _, k := range schemaKeys {
+		indegree[k] = 0
+	}
+	for _, k := range schemaKeys {
+		vs := nodes[k].(*bindings.VariableStatement)
+		deps := collectSchemaDeps(vs, schemaSet, k)
+		for dep := range deps {
+			outEdges[dep] = append(outEdges[dep], k)
+			indegree[k]++
+		}
+	}
+	for k := range outEdges {
+		sort.Strings(outEdges[k])
+	}
+	return indegree, outEdges
+}
+
+// kahnSort runs Kahn's algorithm with alphabetical tie-breaking. Nodes
+// remaining in a cycle after the queue drains are appended in
+// alphabetical order. Callers must still break cross-type cycles with
+// z.lazy; this fallback only keeps Serialize from dropping nodes.
+func kahnSort(schemaKeys []string, indegree map[string]int, outEdges map[string][]string) []string {
+	queue := make([]string, 0, len(schemaKeys))
+	for _, k := range schemaKeys {
+		if indegree[k] == 0 {
+			queue = append(queue, k)
+		}
+	}
+	sort.Strings(queue)
+
+	sorted := make([]string, 0, len(schemaKeys))
+	for len(queue) > 0 {
+		head := queue[0]
+		queue = queue[1:]
+		sorted = append(sorted, head)
+		for _, dep := range outEdges[head] {
+			indegree[dep]--
+			if indegree[dep] == 0 {
+				queue = append(queue, dep)
+			}
+		}
+		sort.Strings(queue)
+	}
+
+	placed := make(map[string]bool, len(sorted))
+	for _, k := range sorted {
+		placed[k] = true
+	}
+	for _, k := range schemaKeys {
+		if !placed[k] {
+			sorted = append(sorted, k)
+		}
+	}
+	return sorted
+}
+
+// collectSchemaDeps returns the schema keys referenced as
+// IdentifierExpression inside a VariableStatement, excluding the schema
+// itself and excluding references inside ArrowFunction bodies (which is
+// how z.lazy is emitted).
+func collectSchemaDeps(vs *bindings.VariableStatement, schemas map[string]bool, self string) map[string]bool {
+	deps := map[string]bool{}
+	walk.Walk(&depVisitor{deps: deps, schemas: schemas, self: self}, vs)
+	return deps
+}
+
+type depVisitor struct {
+	deps    map[string]bool
+	schemas map[string]bool
+	self    string
+}
+
+func (d *depVisitor) Visit(node bindings.Node) walk.Visitor {
+	if _, ok := node.(*bindings.ArrowFunction); ok {
+		// Skip arrow function bodies. z.lazy(() => Other) defers its
+		// reference at runtime, so it should not force Other to be
+		// declared first.
+		return nil
+	}
+	if ident, ok := node.(*bindings.IdentifierExpression); ok {
+		name := ident.Name.Ref()
+		if name != d.self && d.schemas[name] {
+			d.deps[name] = true
+		}
+	}
+	return d
 }
