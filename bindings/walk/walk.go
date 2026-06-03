@@ -70,6 +70,32 @@ func Walk(v Visitor, node bindings.Node) {
 		walkList(v, n.Members)
 	case *bindings.TypeIntersection:
 		walkList(v, n.Types)
+	case *bindings.ExpressionWithTypeArguments:
+		Walk(v, n.Expression)
+		walkList(v, n.Arguments)
+	case *bindings.ImportDeclaration:
+		walkList(v, n.Named)
+	case *bindings.ImportSpecifier:
+		// noop
+	case *bindings.IdentifierExpression:
+		// noop
+	case *bindings.PropertyAccessExpression:
+		Walk(v, n.Expression)
+	case *bindings.CallExpression:
+		Walk(v, n.Expression)
+		walkList(v, n.Arguments)
+	case *bindings.ObjectLiteralExpression:
+		walkList(v, n.Properties)
+	case *bindings.PropertyAssignment:
+		Walk(v, n.Initializer)
+	case *bindings.Parameter:
+		Walk(v, n.Type)
+	case *bindings.ArrowFunction:
+		walkList(v, n.Parameters)
+		Walk(v, n.ReturnType)
+		Walk(v, n.Body)
+	case *bindings.TypeQuery:
+		// noop
 	default:
 		panic(fmt.Sprintf("convert.Walk: unexpected node type %T", n))
 	}
