@@ -8,6 +8,9 @@ export interface Fields {
     readonly enabled: string;
     readonly ratio: string;
     readonly text: string;
+    /**
+     * The string option only affects scalar fields; the map and its values stay unchanged.
+     */
     readonly composite: Record<string, number> | null;
 }
 
