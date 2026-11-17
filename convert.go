@@ -924,12 +924,28 @@ func (ts *Typescript) buildStruct(obj types.Object, st *types.Struct) (*bindings
 			}
 		}
 
+		stringOption := err == nil && jsonTag.HasOption("string")
+
 		// Infer the type.
 		tsType, err := ts.typescriptType(field.Type())
 		if err != nil {
 			return tsi, xerrors.Errorf("typescript type: %w", err)
 		}
 		tsField.Type = tsType.Value
+		if stringOption {
+			fieldType := types.Unalias(field.Type())
+			pointer, nullable := fieldType.(*types.Pointer)
+			if nullable {
+				fieldType = types.Unalias(pointer.Elem())
+			}
+			if basic, ok := fieldType.Underlying().(*types.Basic); ok &&
+				basic.Info()&(types.IsBoolean|types.IsInteger|types.IsFloat|types.IsString) != 0 {
+				tsField.Type = ptr(bindings.KeywordString)
+				if nullable {
+					tsField.Type = bindings.Union(tsField.Type, &bindings.Null{})
+				}
+			}
+		}
 		tsi.Parameters = append(tsi.Parameters, tsType.TypeParameters...)
 		// TODO: Better handle comments. The raised comments should probably be set to
 		//   empty after consumed?
